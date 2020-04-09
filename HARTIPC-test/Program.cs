@@ -14,13 +14,16 @@ namespace HARTIPC_test
                 IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.189"), 5094);
                 Console.WriteLine(server);
 
+                byte[] input = new byte[] { 0x82, 0xa6, 0x4e, 0x0b, 0x6f, 0xe4, 0x00, 0x00, 0xea };
+                HARTMessage message = new HARTMessage(input);
+                HARTMessage manualMessage = new HARTMessage(0, new byte[] { 0xa6, 0x4e, 0x0b, 0x6f, 0xe4 });
+                Console.WriteLine("input : {0}", BitConverter.ToString(input));
+                Console.WriteLine("output: {0}", BitConverter.ToString(message.ToByteArray()));
+                Console.WriteLine("manual: {0}", BitConverter.ToString(manualMessage.ToByteArray()));
 
-                HARTMessage message = new HARTMessage((byte)0x01, new byte[] { 0xa6, 0x4e, 0x0b, 0x6f, 0xe4 });
-                Console.WriteLine(BitConverter.ToString(message.ToByteArray()));
 
-                byte b = 0b1000_0010;
-                Console.WriteLine((b & (1 << 3 - 1)) != 0);
-                
+
+
             }
             catch (ArgumentNullException e)
             {

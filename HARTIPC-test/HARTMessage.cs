@@ -17,24 +17,39 @@ namespace HARTIPC_test
         byte[] status { get; set; }
         byte[] payload { get; set; }
 
-        HARTMessage(byte[] packet)
+        public HARTMessage(byte[] packet)
         {
+            UInt16 nextByte;
+            byte chkSumByte = 0x00;
             startDelimiter = packet[0];
+            master = ((startDelimiter & (1 << 3 - 1)) == 0) ? true : false; //bit 3 indicates ACK or STX
             if ((startDelimiter & (1 << 8 - 1)) == 0)  //first bit indicates long or short address
             {
                 //short address
                 address = packet[1];
+                nextByte = 2;
             }
             else
             {
                 //long address
                 uniqueID = packet.Skip(1).Take(5).ToArray();
+                nextByte = 6;
             }
-            master = ((startDelimiter & (1 << 3 - 1)) == 0) ? true : false; //bit 3 indicates ACK or STX
-            
+            command = packet[nextByte++];
+            byteCount = packet[nextByte++];
+            if (!master)
+                status = packet.Skip(nextByte++).Take(2).ToArray();
+            if (byteCount != 0x00)
+                payload = packet.Skip(nextByte++).Take(byteCount).ToArray();
+            foreach (byte b in packet.Take(packet.Length - 2))
+            {
+                chkSumByte ^= b;
+            }
+            if (packet[packet.Length-1] != chkSumByte)
+                throw new Exception("Checksum mismatch");
 
         }
-        public HARTMessage(short command, byte[] uniqueID)
+        public HARTMessage(ushort command, byte[] uniqueID)
         {
             master = true;
             startDelimiter = 0x82;
@@ -42,7 +57,7 @@ namespace HARTIPC_test
             this.command = (byte)command;
             this.payload = null;
         }
-        HARTMessage(short command, byte address)
+        HARTMessage(ushort command, byte address)
         {
             master = true;
             startDelimiter = 0x02;
@@ -50,7 +65,7 @@ namespace HARTIPC_test
             this.command = (byte)command;
             this.payload = payload;
         }
-        HARTMessage(short command, byte[] uniqueID, byte[] payload)
+        HARTMessage(ushort command, byte[] uniqueID, byte[] payload)
         {
             master = true;
             startDelimiter = 0x82;
@@ -59,7 +74,7 @@ namespace HARTIPC_test
             this.payload = payload;
         }
 
-        HARTMessage(short command, byte[] payload, byte address)
+        HARTMessage(ushort command, byte[] payload, byte address)
         {
             master = true;
             startDelimiter = 0x02;
