@@ -69,7 +69,9 @@ namespace HARTIPC_test
             if (!STX)
             {
                 ResponseCode = binaryPDU[8];
-                DeviceStatus = binaryPDU[9]
+                DeviceStatus = binaryPDU[9];
+                foreach (byte b in binaryPDU[10..^1])
+                    Payload.Append(b);
             }
             else if (binaryPDU.Length > 9)
             {
