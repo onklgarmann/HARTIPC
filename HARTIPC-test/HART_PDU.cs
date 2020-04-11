@@ -15,13 +15,14 @@ namespace HARTIPC_test
         public byte[] Payload { get; }
         public UInt32 Length { get; }
         private bool ShortAddress { get; }
-        private bool STX { get; }
+        public bool STX { get; set;  }
         private byte Checksum { get; set; }
+        private byte ResponseCode { get; set; }
+        private byte DeviceStatus { get; set; }
         public byte[] PDU{ get; }
         protected HART_PDU(){}
         public HART_PDU(bool shortAddress, bool STX, byte[] address, ushort command)
         {
-            this.STX = STX;
             ShortAddress = shortAddress;
             if (ShortAddress)
                 StartDelimiter = STX ? (byte)0x02 : (byte)0x06;
@@ -35,7 +36,6 @@ namespace HARTIPC_test
         }
         public HART_PDU(bool shortAddress, bool STX, byte[] address, ushort command, ref byte[] payload)
         {
-            this.STX = STX;
             ShortAddress = shortAddress;
             if (ShortAddress)
                 StartDelimiter = STX ? (byte)0x02 : (byte)0x06;
@@ -50,28 +50,33 @@ namespace HARTIPC_test
         }
         public HART_PDU(byte[] binaryPDU)
         {
-            PDU = binaryPDU;
             Checksum = 0x00;
-            foreach (byte b in PDU[0..^1])
+            foreach (byte b in binaryPDU[0..^1])
                 Checksum ^= b;
-             if (PDU.Length < 9)
-                throw new Exception("PDU too short");
-            else if (Checksum != PDU[^1])
+             if (binaryPDU.Length < 9)
+                throw new Exception("binaryPDU too short");
+            else if (Checksum != binaryPDU[^1])
                 throw new Exception("Checksum mismatch");
-            StartDelimiter = PDU[0];
+            StartDelimiter = binaryPDU[0];
             STX = (StartDelimiter & (1 << 3 - 1)) == 0 ? true : false;
             ShortAddress = (StartDelimiter & (1 << 8 - 1)) == 0 ? true : false;
             if (ShortAddress)
-                Address[0] = PDU[1];
+                Address[0] = binaryPDU[1];
             else
-                Address = PDU[1..5];
-            Command = PDU[6];
-            ByteCount = PDU[7];
-            if (PDU.Length > 9)
+                Address = binaryPDU[1..5];
+            Command = binaryPDU[6];
+            ByteCount = binaryPDU[7];
+            if (!STX)
             {
-                foreach (byte b in PDU[8..^1])
+                ResponseCode = binaryPDU[8];
+                DeviceStatus = binaryPDU[9]
+            }
+            else if (binaryPDU.Length > 9)
+            {
+                foreach (byte b in binaryPDU[8..^1])
                     Payload.Append(b);
             }
+            PDU = binaryPDU;
         }
         private byte[] PDU2Binary()
         {
