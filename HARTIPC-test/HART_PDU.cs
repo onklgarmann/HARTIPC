@@ -6,6 +6,7 @@ using System.Text;
 
 namespace HARTIPC_test
 {
+    //skriver om denne klassen 12.04.20
     class HART_PDU
     {
         public byte StartDelimiter { get; }
