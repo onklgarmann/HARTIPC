@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 
-namespace HARTIPC_test
+namespace HARTIPC
 {
     class Program
     {
@@ -15,7 +15,7 @@ namespace HARTIPC_test
                 //test
                 IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.189"), 5094);
                 Console.WriteLine(server);
-                byte[] input = { 0x82, 0xA6, 0x4E, 0x0B, 0x6F, 0xE4, 0x4D, 0x0B, 0x00, 0x00, 0x05, 0x82, 0x91, 0x0E, 0x5D, 0x6B, 0x68, 0x01, 0x00, 0xEB };
+                byte[] input = { 0x01, 0x00, 0x09, 0x27, 0xc0 };
                 Console.WriteLine("input:\t{0}", BitConverter.ToString(input));
                 
                 HARTFrame frame = new HARTFrame(input);

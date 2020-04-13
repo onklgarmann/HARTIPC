@@ -1,5 +1,5 @@
 ﻿using System;
-using HARTIPC;
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace UnitTest_HARTFrame
