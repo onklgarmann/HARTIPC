@@ -1,15 +1,15 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
-using System.Text;
 
-namespace HARTIPC_test
+namespace HARTIPC
 {
+    public enum FrameType { STX, ACK };
+    public enum AddressFormat { Polling, UniqueID }
     class HARTFrame
     {
         #region Properties
-        public bool STX { get; private set; } // is the frame STX or ACK ( true : false )
-        public bool ShortAddress { get; private set; } // is the frame polling address or uniqueID ( true : false )
+        public AddressFormat AddressFormat { get; set; }
+        public FrameType FrameType { get; set; }
         private byte Offset { get; set; } = 0x00; // Offset +=4 if frame is uniqueID;
         public byte StartDelimiter { get; private set; } // first byte of frame, 4 values possible.  sets STX, ShortAddress/Offset.
         public byte[] Address { get; private set; } // Address of frame, 1 or 5 bytes in array.
@@ -20,35 +20,23 @@ namespace HARTIPC_test
         public byte[] Payload { get; private set; }  // potential payload.
         public byte Checksum { get; private set; } = 0x00;  // checksum = XOR of all bytes.
         #endregion
-        public HARTFrame(byte[] address, byte command) : this(false, true, address, command)
-        {
-
-        } // constructor for default STX & uniqueID, no payload;
-        public HARTFrame(byte[] address, byte command, byte[] payload) : this(false, true, address, command, payload)
-        {
-
-        } // constructor for default STX & uniqueID, with payload;
-        public HARTFrame(bool shortAddress, bool STX, byte[] address, byte command) : this(shortAddress, STX, address, command, null)
-        {
-
-        } // constructor without payload;
-        public HARTFrame(bool shortAddress, bool STX, byte[] address, byte command, byte[] payload) // complete constructor with payload;
+        public HARTFrame( byte[] address, byte command, AddressFormat addressFormat = AddressFormat.UniqueID, FrameType frameType = FrameType.STX, byte[] payload = null) // complete constructor with payload;
         {
             #region Validation
             // validate address length and payload length if frame is server response ACK
-            if (!((shortAddress && address.Length == 1) || (!shortAddress && address.Length == 5)))
+            if (!((AddressFormat == AddressFormat.Polling && address.Length == 1) || (AddressFormat == AddressFormat.UniqueID && address.Length == 5)))
                 throw new ArgumentException("invalid address");
-            if (!STX && payload.Length < 2)
+            if (FrameType == FrameType.ACK && payload.Length < 2)
                 throw new ArgumentException("payload too short for ACK-frame");
             #endregion
             // set StartDelimiter and Offset from STX and ShortAddress
-            ShortAddress = shortAddress;
-            this.STX = STX;
-            if (ShortAddress)
-                StartDelimiter = this.STX ? (byte)0x02 : (byte)0x06;
+            AddressFormat = addressFormat;
+            FrameType = frameType;
+            if (AddressFormat == AddressFormat.Polling)
+                StartDelimiter = FrameType == FrameType.STX ? (byte)0x02 : (byte)0x06;
             else
             {
-                StartDelimiter = this.STX ? (byte)0x82 : (byte)0x86;
+                StartDelimiter = FrameType == FrameType.STX ? (byte)0x82 : (byte)0x86;
                 Offset = 0x04;
             }
             // Set Address and Command directly from input
@@ -56,7 +44,7 @@ namespace HARTIPC_test
             Command = command;
             // Set ByteCount based on frame type and payload length.
             ByteCount = (payload != null) ? payload.Length : 0x00;
-            if (!STX)
+            if (FrameType == FrameType.ACK)
             {
                 ResponseCode = payload[0];
                 DeviceStatus = payload[1];
@@ -65,7 +53,7 @@ namespace HARTIPC_test
             }
             else if (payload != null)
                 Payload = payload;
-            
+
         }
         public HARTFrame(byte[] binary)
         {
@@ -77,22 +65,22 @@ namespace HARTIPC_test
             // set StartDelimiter directly.
             StartDelimiter = binary[0];
             // set STX and ShortAddress based on StartDelimiter
-            ShortAddress = ((StartDelimiter & (1 << 7)) == 0) ? true : false;
-            STX = ((StartDelimiter & (1 << 2)) == 0) ? true : false;
+            AddressFormat = ((StartDelimiter & (1 << 7)) == 0) ? AddressFormat.Polling : AddressFormat.UniqueID;
+            FrameType = ((StartDelimiter & (1 << 2)) == 0) ? FrameType.STX : FrameType.ACK;
             // Validate minimum input length
-            if ((ShortAddress && binary.Length < 5) || (!ShortAddress && binary.Length < 9))
+            if ((AddressFormat == AddressFormat.Polling && binary.Length < 5) || (AddressFormat == AddressFormat.UniqueID && binary.Length < 9))
                 throw new Exception("binaryPDU too short");
             // set Offset if using uniqueID;
-            if (!ShortAddress)
+            if (AddressFormat == AddressFormat.UniqueID)
                 Offset = 0x04;
             // read address, command, and bytecount.
             Address = binary[1..(2 + Offset)];
             Command = binary[(2 + Offset)];
             ByteCount = binary[(3 + Offset)];
             // read potential response code and device status if ACK. read payload.
-            if (STX)
-                Payload = binary[(4 + Offset)..((4 + Offset)+(ByteCount))];
-            else if (!STX)
+            if (FrameType == FrameType.STX)
+                Payload = binary[(4 + Offset)..((4 + Offset) + (ByteCount))];
+            else if (FrameType == FrameType.ACK)
             {
                 ResponseCode = binary[5 + Offset];
                 DeviceStatus = binary[6 + Offset];
