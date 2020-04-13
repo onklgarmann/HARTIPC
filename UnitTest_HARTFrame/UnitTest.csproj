@@ -56,7 +56,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\HARTIPC-test\HARTIPC.csproj">
+    <ProjectReference Include="..\HARTIPC\HARTIPC.csproj">
       <Project>{baa16dcf-d65e-4259-bc6a-f7ec66a5057b}</Project>
       <Name>HARTIPC</Name>
     </ProjectReference>
