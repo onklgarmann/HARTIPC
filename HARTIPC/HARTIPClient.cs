@@ -4,9 +4,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace HARTIPC_test
+namespace HARTIPC
 {
-    class HARTIPClient
+    class HARTIPClient : IDisposable
     {
         TcpClient client;
         IPEndPoint server;
@@ -26,5 +26,9 @@ namespace HARTIPC_test
             
         }
 
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

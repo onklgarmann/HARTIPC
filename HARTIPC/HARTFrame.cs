@@ -24,14 +24,16 @@ namespace HARTIPC
         {
             #region Validation
             // validate address length and payload length if frame is server response ACK
-            if (!((AddressFormat == AddressFormat.Polling && address.Length == 1) || (AddressFormat == AddressFormat.UniqueID && address.Length == 5)))
-                throw new ArgumentException("invalid address");
-            if (FrameType == FrameType.ACK && payload.Length < 2)
-                throw new ArgumentException("payload too short for ACK-frame");
-            #endregion
-            // set StartDelimiter and Offset from STX and ShortAddress
             AddressFormat = addressFormat;
             FrameType = frameType;
+            if (address == null)
+                throw new ArgumentNullException(nameof(address));
+            if (!((AddressFormat == AddressFormat.Polling && address.Length == 1) || (AddressFormat == AddressFormat.UniqueID && address.Length == 5)))
+                throw new ArgumentException("invalid address");
+            if (FrameType == FrameType.ACK && (payload == null || payload.Length < 2))
+                throw new ArgumentException("payload too short for ACK-frame");
+            #endregion
+            // set StartDelimiter and Offset from frametype and address format
             if (AddressFormat == AddressFormat.Polling)
                 StartDelimiter = FrameType == FrameType.STX ? (byte)0x02 : (byte)0x06;
             else
@@ -57,11 +59,11 @@ namespace HARTIPC
         }
         public HARTFrame(byte[] binary)
         {
-            // calculate checksum and validate against input
-            foreach (byte b in binary[0..^1])
-                Checksum ^= b;
-            if (binary[^1] != Checksum)
-                throw new Exception("Checksum mismatch");
+            //validate input
+            if (binary == null)
+                throw new ArgumentNullException(nameof(binary));
+            else if (binary.Length < 5)
+                throw new ArgumentOutOfRangeException(nameof(binary));
             // set StartDelimiter directly.
             StartDelimiter = binary[0];
             // set STX and ShortAddress based on StartDelimiter
@@ -70,6 +72,13 @@ namespace HARTIPC
             // Validate minimum input length
             if ((AddressFormat == AddressFormat.Polling && binary.Length < 5) || (AddressFormat == AddressFormat.UniqueID && binary.Length < 9))
                 throw new Exception("binaryPDU too short");
+            if(FrameType == FrameType.STX && _Payload.Length > 10)
+            {
+                foreach (byte b in binary[0..^1])
+                Checksum ^= b;
+            if (binary[^1] != Checksum)
+                throw new Exception("Checksum mismatch");
+            }
             // set Offset if using uniqueID;
             if (AddressFormat == AddressFormat.UniqueID)
                 _Offset = 0x04;
