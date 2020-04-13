@@ -6,7 +6,7 @@ namespace HARTIPC
 {
     public enum MessageType : byte { Request = 0x00, Response = 0x01, Publish = 0x02, NAK = 0x0F } 
     public enum MessageID : byte { Initiate = 0x00, Close = 0x01, KeepAlive = 0x02, PDU = 0x03, Discovery = 0x80 }
-    class HARTIPFrame
+    public class HARTIPFrame
     {
         public byte Version { get; set; }
         public MessageType MessageType { get; set; }
@@ -38,7 +38,7 @@ namespace HARTIPC
                     CompleteFrame.AddRange(new byte[] { 0x01, 0x00, 0x09, 0x27, 0xC0 });
                     break;
                 case MessageID.Discovery:
-                    CompleteFrame.AddRange(new byte[] { 0x4C, 0x0F, 0x38, 0xAC, 0x48, 0xAE, 0x49, 0x35, 0xB6, 0x89, 0x8F, 0x21, 0xF8, 0x5F, 0xC0, 0x3 });
+                    CompleteFrame.AddRange(new byte[] { 0x4C, 0x0F, 0x38, 0xAC, 0x48, 0xAE, 0x49, 0x35, 0xB6, 0x89, 0x8F, 0x21, 0xF8, 0x5F, 0xC0, 0x30 });
                     break;
                 case MessageID.PDU:
                     CompleteFrame.AddRange(HARTFrame.ToArray());
