@@ -12,7 +12,7 @@ namespace HARTIPC_test
         {
             try
             {
-
+                //test
                 IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.189"), 5094);
                 Console.WriteLine(server);
                 byte[] input = { 0x82, 0xA6, 0x4E, 0x0B, 0x6F, 0xE4, 0x4D, 0x0B, 0x00, 0x00, 0x05, 0x82, 0x91, 0x0E, 0x5D, 0x6B, 0x68, 0x01, 0x00, 0xEB };
