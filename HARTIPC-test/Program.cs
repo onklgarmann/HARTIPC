@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 
@@ -10,17 +12,16 @@ namespace HARTIPC_test
         {
             try
             {
-                
+
                 IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.189"), 5094);
                 Console.WriteLine(server);
-
-                byte[] input = new byte[] { 0x82, 0xa6, 0x4e, 0x0b, 0x6f, 0xe4, 0x00, 0x00, 0xea };
-                HARTMessage message = new HARTMessage(input);
-                HARTMessage manualMessage = new HARTMessage(0, new byte[] { 0xa6, 0x4e, 0x0b, 0x6f, 0xe4 });
-                Console.WriteLine("input : {0}", BitConverter.ToString(input));
-                Console.WriteLine("output: {0}", BitConverter.ToString(message.ToByteArray()));
-                Console.WriteLine("manual: {0}", BitConverter.ToString(manualMessage.ToByteArray()));
-
+                byte[] input = { 0x82, 0xA6, 0x4E, 0x0B, 0x6F, 0xE4, 0x4D, 0x0B, 0x00, 0x00, 0x05, 0x82, 0x91, 0x0E, 0x5D, 0x6B, 0x68, 0x01, 0x00, 0xEB };
+                Console.WriteLine("input:\t{0}", BitConverter.ToString(input));
+                
+                HARTFrame frame = new HARTFrame(input);
+                byte[] output = frame.ToArray();
+                Console.WriteLine("output:\t{0}", BitConverter.ToString(output));
+                Console.WriteLine(input.SequenceEqual(output));
 
 
 

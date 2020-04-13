@@ -14,13 +14,15 @@ namespace HARTIPC_test
         byte address { get; set; }
         byte command { get; set; }
         byte byteCount { get; set; }
-        byte[] status { get; set; }
+        byte responseCode { get; set; }
+        byte status { get; set; }
         byte[] payload { get; set; }
+        byte chkSumByte = 0x00;
 
         public HARTMessage(byte[] packet)
         {
             UInt16 nextByte;
-            byte chkSumByte = 0x00;
+            
             startDelimiter = packet[0];
             master = ((startDelimiter & (1 << 3 - 1)) == 0) ? true : false; //bit 3 indicates ACK or STX
             if ((startDelimiter & (1 << 8 - 1)) == 0)  //first bit indicates long or short address
@@ -38,13 +40,20 @@ namespace HARTIPC_test
             command = packet[nextByte++];
             byteCount = packet[nextByte++];
             if (!master)
-                status = packet.Skip(nextByte++).Take(2).ToArray();
-            if (byteCount != 0x00)
+            {
+                responseCode = packet[nextByte++];
+                status = packet[nextByte++];
+                if (byteCount != 0x00)
+                    payload = packet.Skip(nextByte++).Take(byteCount-2).ToArray();
+            }
+            else
                 payload = packet.Skip(nextByte++).Take(byteCount).ToArray();
-            foreach (byte b in packet.Take(packet.Length - 2))
+               
+            foreach (byte b in packet.Take(packet.Length - 1))
             {
                 chkSumByte ^= b;
             }
+            
             if (packet[packet.Length-1] != chkSumByte)
                 throw new Exception("Checksum mismatch");
 
@@ -86,7 +95,7 @@ namespace HARTIPC_test
         {
             Queue<byte> packet = new Queue<byte>();
             packet.Enqueue(startDelimiter);
-            if (uniqueID == null)
+            if ((startDelimiter & (1 << 8 - 1)) == 0)
             {
                 packet.Enqueue(address);
             }
@@ -100,8 +109,8 @@ namespace HARTIPC_test
             {
                 byteCount = (payload != null) ? (byte)(payload.Length+2) : (byte)0x00;
                 packet.Enqueue(byteCount);
-                packet.Enqueue(status[1]);
-                packet.Enqueue(status[0]);
+                packet.Enqueue(responseCode);
+                packet.Enqueue(status);
             }
             else
             {
@@ -120,6 +129,17 @@ namespace HARTIPC_test
             }
             packet.Enqueue(chkSumByte);
             return packet.ToArray();
+        }
+        public void Print()
+        {
+            Console.WriteLine("Delimiter: \t{0}", startDelimiter.ToString("X2"));
+            Console.WriteLine("Address: \t{0}", BitConverter.ToString(uniqueID.ToArray()));
+            Console.WriteLine("Command: \t{0}", command.ToString("X2"));
+            Console.WriteLine("Byte Count: \t{0}", byteCount.ToString("X2"));
+            Console.WriteLine("Response Code: \t{0}", responseCode.ToString("X2"));
+            Console.WriteLine("Status: \t{0}", status.ToString("X2"));
+            Console.WriteLine("Payload: \t{0}", BitConverter.ToString(payload.ToArray()));
+            Console.WriteLine("Checksum: \t{0}", chkSumByte.ToString("X2"));
         }
 
     }
