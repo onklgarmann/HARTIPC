@@ -7,17 +7,17 @@ namespace HARTIPC
     public enum AddressFormat { Polling, UniqueID }
     public class HARTFrame
     {
+        private byte[] _Address; // Address of frame, 1 or 5 bytes in array.
+        private byte _Offset { get; set; } = 0x00; // Offset +=4 if frame is uniqueID;
+        private byte[] _Payload;  // potential payload.
         #region Properties
         public AddressFormat AddressFormat { get; set; }
         public FrameType FrameType { get; set; }
-        private byte _Offset { get; set; } = 0x00; // Offset +=4 if frame is uniqueID;
         public byte StartDelimiter { get; private set; } // first byte of frame, 4 values possible.  sets STX, ShortAddress/Offset.
-        private byte[] _Address; // Address of frame, 1 or 5 bytes in array.
         public byte Command { get; private set; } // Command, 0-255.  Will limit options when scope is decided.
         public int ByteCount { get; private set; } = 0x00;  // ByteCount = number of bytes between ByteCount and Checksum
         public byte? ResponseCode { get; private set; }  // responsecode only in ACK-frames.
         public byte? DeviceStatus { get; private set; }  // Device status only in ACK-frames
-        private byte[] _Payload;  // potential payload.
         public byte Checksum { get; private set; } = 0x00;  // checksum = XOR of all bytes.
         #endregion
         public HARTFrame(byte[] address, byte command, AddressFormat addressFormat = AddressFormat.UniqueID, FrameType frameType = FrameType.STX, byte[] payload = null) // complete constructor with payload;
@@ -72,13 +72,14 @@ namespace HARTIPC
             // Validate minimum input length
             if ((AddressFormat == AddressFormat.Polling && binary.Length < 5) || (AddressFormat == AddressFormat.UniqueID && binary.Length < 9))
                 throw new Exception("binaryPDU too short");
-            if(FrameType == FrameType.STX && _Payload.Length > 10)
+            if (FrameType == FrameType.STX && binary.Length > 10)
             {
                 foreach (byte b in binary[0..^1])
-                Checksum ^= b;
-            if (binary[^1] != Checksum)
-                throw new Exception("Checksum mismatch");
+                    Checksum ^= b;
+                if (binary[^1] != Checksum)
+                    throw new Exception("Checksum mismatch");
             }
+            
             // set Offset if using uniqueID;
             if (AddressFormat == AddressFormat.UniqueID)
                 _Offset = 0x04;
