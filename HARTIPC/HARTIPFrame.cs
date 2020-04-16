@@ -17,14 +17,15 @@ namespace HARTIPC
         public HARTFrame HARTFrame { get; set; }
         public HARTIPFrame(ushort sequenceNumber, byte version = 0x01, MessageType messageType = MessageType.Request, MessageID messageID = MessageID.KeepAlive, byte statusCode = 0x00, HARTFrame frame = null)
         {
-            if (messageID == MessageID.PDU && frame == null)
-                throw new ArgumentException("HARTFrame cannot be null while MessageID is PDU(0x03)");
+            if(ValidFrameForID(messageID, frame))
+            {
+                MessageID = messageID;
+                HARTFrame = frame;
+            }
             Version = version;
             MessageType = messageType;
-            MessageID = messageID;
             StatusCode = statusCode;
             SequenceNumber = sequenceNumber;
-            this.HARTFrame = frame;
             ByteCount = (frame == null) ? (ushort)8 : (ushort)(8 + frame.ByteCount);
         }
         public byte[] ToArray()
@@ -46,6 +47,14 @@ namespace HARTIPC
             }
                 
             return CompleteFrame.ToArray();
+        }
+        private bool ValidFrameForID(MessageID messageID, HARTFrame frame)
+        {
+            if (messageID == MessageID.PDU && frame == null)
+                throw new ArgumentException("HARTFrame cannot be null while MessageID is ", messageID.ToString());
+            else if (messageID != MessageID.PDU && frame != null)
+                throw new ArgumentException("HARTFrame must be null while MessageID is", messageID.ToString());
+            return true;
         }
     }
 }

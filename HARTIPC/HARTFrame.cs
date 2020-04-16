@@ -8,8 +8,9 @@ namespace HARTIPC
     public class HARTFrame
     {
         private byte[] _Address; // Address of frame, 1 or 5 bytes in array.
-        private byte _Offset { get; set; } = 0x00; // Offset +=4 if frame is uniqueID;
+        private byte _HeaderLength { get; set; } = 0x04; // Offset +=4 if frame is uniqueID;
         private byte[] _Payload;  // potential payload.
+        private byte _Offset { get; set; }
         #region Properties
         public AddressFormat AddressFormat { get; set; }
         public FrameType FrameType { get; set; }
@@ -19,6 +20,7 @@ namespace HARTIPC
         public byte? ResponseCode { get; private set; }  // responsecode only in ACK-frames.
         public byte? DeviceStatus { get; private set; }  // Device status only in ACK-frames
         public byte Checksum { get; private set; } = 0x00;  // checksum = XOR of all bytes.
+
         #endregion
         public HARTFrame(byte[] address, byte command, AddressFormat addressFormat = AddressFormat.UniqueID, FrameType frameType = FrameType.STX, byte[] payload = null) // complete constructor with payload;
         {
@@ -39,7 +41,8 @@ namespace HARTIPC
             else
             {
                 StartDelimiter = FrameType == FrameType.STX ? (byte)0x82 : (byte)0x86;
-                _Offset = 0x04;
+                _Offset += 0x04;
+                _HeaderLength += 0x04;
             }
             // Set Address and Command directly from input
             _Address = address;
@@ -67,34 +70,35 @@ namespace HARTIPC
             // set StartDelimiter directly.
             StartDelimiter = binary[0];
             // set STX and ShortAddress based on StartDelimiter
-            AddressFormat = ((StartDelimiter & (1 << 7)) == 0) ? AddressFormat.Polling : AddressFormat.UniqueID;
-            FrameType = ((StartDelimiter & (1 << 2)) == 0) ? FrameType.STX : FrameType.ACK;
+            SetTypeAndFormat();
+            
             // Validate minimum input length
             if ((AddressFormat == AddressFormat.Polling && binary.Length < 5) || (AddressFormat == AddressFormat.UniqueID && binary.Length < 9))
                 throw new Exception("binaryPDU too short");
-            if (FrameType == FrameType.STX && binary.Length > 10)
-            {
-                foreach (byte b in binary[0..^1])
-                    Checksum ^= b;
-                if (binary[^1] != Checksum)
-                    throw new Exception("Checksum mismatch");
-            }
-            
+
             // set Offset if using uniqueID;
             if (AddressFormat == AddressFormat.UniqueID)
-                _Offset = 0x04;
+            { _HeaderLength += 0x04; _Offset += 0x04; }
             // read address, command, and bytecount.
             _Address = binary[1..(2 + _Offset)];
             Command = binary[(2 + _Offset)];
             ByteCount = binary[(3 + _Offset)];
+
+            if (ByteCount > 0)
+            {
+                foreach (byte b in binary[0..(_HeaderLength + ByteCount)])
+                    Checksum ^= b;
+                if (binary[(_HeaderLength + ByteCount)] != Checksum)
+                    throw new Exception("Checksum mismatch");
+            }
             // read potential response code and device status if ACK. read payload.
             if (FrameType == FrameType.STX)
-                _Payload = binary[(4 + _Offset)..((4 + _Offset) + (ByteCount))];
+                _Payload = binary[_HeaderLength..(_HeaderLength + ByteCount)];
             else if (FrameType == FrameType.ACK)
             {
-                ResponseCode = binary[5 + _Offset];
-                DeviceStatus = binary[6 + _Offset];
-                _Payload = binary[(7 + _Offset)..(ByteCount + 1)];
+                ResponseCode = binary[_HeaderLength];
+                DeviceStatus = binary[_HeaderLength+1];
+                _Payload = binary[(_HeaderLength+2)..(_HeaderLength + ByteCount)];
             }
         }
         #region Methods        
@@ -130,6 +134,15 @@ namespace HARTIPC
         public byte[] GetPayload()
         {
             return (byte[])_Payload.Clone();
+        }
+        private void SetTypeAndFormat()
+        {
+            AddressFormat = ((StartDelimiter & (1 << 7)) == 0) ? AddressFormat.Polling : AddressFormat.UniqueID;
+            FrameType = ((StartDelimiter & (1 << 2)) == 0) ? FrameType.STX : FrameType.ACK;
+        }
+        public int GetLength()
+        {
+            return (_HeaderLength + ByteCount + 1);
         }
         #endregion
 
