@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace HARTIPC
@@ -13,48 +14,55 @@ namespace HARTIPC
         public MessageID MessageID { get; set; }
         public byte StatusCode { get; set; }
         public ushort SequenceNumber { get; set; }
-        public ushort ByteCount { get; set; }
-        //public IHARTFrame HARTFrame { get; set; }
+        public ushort ByteCount { get; set; } = 0x08;
+        public IHARTFrame HARTFrame { get; set; }
         public HARTIPFrame(ushort sequenceNumber, byte version = 0x01, MessageType messageType = MessageType.Request, MessageID messageID = MessageID.KeepAlive, byte statusCode = 0x00)
         {
-            /*if(ValidFrameForID(messageID))
-            {
-                MessageID = messageID;
-                
-            }*/
             Version = version;
             MessageType = messageType;
+            MessageID = messageID;
             StatusCode = statusCode;
             SequenceNumber = sequenceNumber;
-            //ByteCount = (frame == null) ? (ushort)8 : (ushort)(8 + frame.GetLength());
         }
-        /*public byte[] ToArray()
+        public HARTIPFrame(byte[] binary)
         {
-            List<byte> CompleteFrame = new List<byte>() { Version, (byte)MessageType, (byte)MessageID, StatusCode };
-            CompleteFrame.AddRange(BitConverter.GetBytes(SequenceNumber));
-            CompleteFrame.AddRange(BitConverter.GetBytes(ByteCount));
-            switch (MessageID)
+            throw new NotImplementedException();
+        }
+        public byte[] Serialize()
+        {
+            List<byte> Header = new List<byte> { Version, (byte)MessageType, (byte)MessageID, StatusCode };
+            byte[] seq = BitConverter.GetBytes(SequenceNumber);
+            byte[] btc = BitConverter.GetBytes(ByteCount);
+            if (BitConverter.IsLittleEndian)
             {
-                case MessageID.Initiate:
-                    CompleteFrame.AddRange(new byte[] { 0x01, 0x00, 0x09, 0x27, 0xC0 });
-                    break;
-                case MessageID.Discovery:
-                    CompleteFrame.AddRange(new byte[] { 0x4C, 0x0F, 0x38, 0xAC, 0x48, 0xAE, 0x49, 0x35, 0xB6, 0x89, 0x8F, 0x21, 0xF8, 0x5F, 0xC0, 0x30 });
-                    break;
-                case MessageID.PDU:
-                    CompleteFrame.AddRange(HARTFrame.ToArray());
-                    break;
+                Array.Reverse(seq, 0, seq.Length);
+                Array.Reverse(btc, 0, btc.Length);
             }
-                
-            return CompleteFrame.ToArray();
-        }*/
-        /*private bool ValidFrameForID(MessageID messageID)
+            Header.AddRange(seq);
+            Header.AddRange(btc);
+            return Header.ToArray();
+        }
+        public byte[] Serialize(IHARTFrame frame)
         {
-            if (messageID == MessageID.PDU && frame == null)
-                throw new ArgumentException("HARTFrame cannot be null while MessageID is ", messageID.ToString());
-            else if (messageID != MessageID.PDU && frame != null)
-                throw new ArgumentException("HARTFrame must be null while MessageID is", messageID.ToString());
-            return true;
-        }*/
+            if (frame != null)
+            {
+                ByteCount = (ushort)frame.GetLength();
+                return this.Serialize().Concat(frame.Serialize()).ToArray();
+            }
+            else
+                throw new ArgumentNullException(nameof(frame));
+        }
+        public byte[] Serialize(byte[] binary)
+        {
+            if (binary != null)
+            {
+                ByteCount = (ushort)binary.Length;
+                byte[] CompleteFrame = Serialize();
+                return this.Serialize().Concat(binary).ToArray();
+            }
+            else
+                throw new ArgumentNullException(nameof(binary));
+        }
+
     }
 }
