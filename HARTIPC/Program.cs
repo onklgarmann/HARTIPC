@@ -24,6 +24,11 @@ namespace HARTIPC
                 HARTFrameACK frame2 = new HARTFrameACK(new byte[] { 0x80 }, 0x00, new byte[] { 0x00, 0x50, 0xfe, 0x26, 0x4e, 0x05, 0x07, 0x05, 0x02, 0x0e,
             0x0c, 0x0b, 0x6f, 0xe4, 0x05, 0x04, 0x00, 0x02, 0x00, 0x00, 0x26, 0x00, 0x26, 0x84});
                 Console.WriteLine(BitConverter.ToString(frame2.Serialize()));
+
+                Console.WriteLine("\n\n\n");
+
+                HARTIPFrame header = new HARTIPFrame(1);
+                Console.WriteLine(BitConverter.ToString(header.Serialize(payload)));
             }
             catch (ArgumentNullException e)
             {

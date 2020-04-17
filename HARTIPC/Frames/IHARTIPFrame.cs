@@ -12,6 +12,5 @@ namespace HARTIPC
         byte StatusCode { get; set; }
         ushort SequenceNumber { get; set; }
         ushort ByteCount { get; set; }
-        //IHARTFrame HARTFrame { get; set; }
     }
 }

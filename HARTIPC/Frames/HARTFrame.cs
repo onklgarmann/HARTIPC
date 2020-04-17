@@ -103,6 +103,7 @@ namespace HARTIPC
         }
         internal void CalcChecksum()
         {
+            Checksum = 0x00;
             foreach(byte b in base.ToByteList())
             {
                 Checksum ^= b;   
