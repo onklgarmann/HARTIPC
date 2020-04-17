@@ -5,13 +5,15 @@ namespace HARTIPC
 {
     public enum FrameType { STX, ACK };
     public enum AddressFormat { Polling, UniqueID }
-    public class HARTFrame
+    public class HARTFrame : IHARTFrame
     {
         private byte[] _Address; // Address of frame, 1 or 5 bytes in array.
-        private byte _HeaderLength { get; set; } = 0x04; // Offset +=4 if frame is uniqueID;
+        
         private byte[] _Payload;  // potential payload.
-        private byte _Offset { get; set; }
+        
         #region Properties
+        private byte _HeaderLength { get; set; } = 0x04; // Offset +=4 if frame is uniqueID;
+        private byte _Offset { get; set; }
         public AddressFormat AddressFormat { get; set; }
         public FrameType FrameType { get; set; }
         public byte StartDelimiter { get; private set; } // first byte of frame, 4 values possible.  sets STX, ShortAddress/Offset.

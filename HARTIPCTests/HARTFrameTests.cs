@@ -9,8 +9,6 @@ namespace HARTIPC.Tests
     [TestClass]
     public class HARTFrameTests
     {
-        HARTFrame frame;
-
         #region ValidHARTFrame, binary
         [DataRow(new byte[] { 0x02, 0x80, 0x00, 0x00, 0x82 })]
         [DataRow(new byte[] { 0x82, 0xa6, 0x4e, 0x0b, 0x6f, 0xe4, 0x14, 0x00, 0xfe })]
@@ -25,7 +23,7 @@ namespace HARTIPC.Tests
         [TestMethod()]
         public void HARTFrameValidBinaryTest(byte[] input)
         {
-            frame = new HARTFrame(input);
+            IHARTFrame frame = new HARTFrame(input);
             Assert.IsInstanceOfType(frame, typeof(HARTFrame));
         }
         #region ValidHARTFrame, binary
@@ -42,7 +40,7 @@ namespace HARTIPC.Tests
         [TestMethod]
         public void HARTFrameValidBinaryTestOutput(byte[] input)
         {
-            frame = new HARTFrame(input);
+            IHARTFrame frame = new HARTFrame(input);
             var actual = frame.ToArray();
             CollectionAssert.AreEqual(input[0..frame.GetLength()], actual);
         }
@@ -50,15 +48,14 @@ namespace HARTIPC.Tests
         [TestMethod]
         public void HARTFrameValidManualEntryTest(byte[] address, byte command, AddressFormat format)
         {
-            frame = new HARTFrame(address, command, format);
+            IHARTFrame frame = new HARTFrame(address, command, format);
             Assert.IsInstanceOfType(frame, typeof(HARTFrame));
         }
-        [DataRow(new byte[] { 0x82 }, 0x00)]
+        [DataRow(new byte[] { 0x82, 0xa6, 0x4e, 0x0b, 0x6f }, (byte)0x00)]
         [TestMethod]
         public void HARTFrameValidManualEntryTestOutput(byte[] address, byte command)
         {
-            frame = new HARTFrame(address, command);
-            var actual = frame.ToArray();
+            IHARTFrame frame = new HARTFrame(address, command);
             CollectionAssert.AreEqual(address, frame.GetAddress());
             Assert.AreEqual(command, frame.Command);
         }
