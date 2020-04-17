@@ -6,7 +6,7 @@ namespace HARTIPC
 {
     public enum MessageType : byte { Request = 0x00, Response = 0x01, Publish = 0x02, NAK = 0x0F } 
     public enum MessageID : byte { Initiate = 0x00, Close = 0x01, KeepAlive = 0x02, PDU = 0x03, Discovery = 0x80 }
-    public class HARTIPFrame
+    public class HARTIPFrame 
     {
         public byte Version { get; set; }
         public MessageType MessageType { get; set; }
@@ -14,21 +14,21 @@ namespace HARTIPC
         public byte StatusCode { get; set; }
         public ushort SequenceNumber { get; set; }
         public ushort ByteCount { get; set; }
-        public HARTFrame HARTFrame { get; set; }
-        public HARTIPFrame(ushort sequenceNumber, byte version = 0x01, MessageType messageType = MessageType.Request, MessageID messageID = MessageID.KeepAlive, byte statusCode = 0x00, HARTFrame frame = null)
+        //public IHARTFrame HARTFrame { get; set; }
+        public HARTIPFrame(ushort sequenceNumber, byte version = 0x01, MessageType messageType = MessageType.Request, MessageID messageID = MessageID.KeepAlive, byte statusCode = 0x00)
         {
-            if(ValidFrameForID(messageID, frame))
+            /*if(ValidFrameForID(messageID))
             {
                 MessageID = messageID;
-                HARTFrame = frame;
-            }
+                
+            }*/
             Version = version;
             MessageType = messageType;
             StatusCode = statusCode;
             SequenceNumber = sequenceNumber;
-            ByteCount = (frame == null) ? (ushort)8 : (ushort)(8 + frame.ByteCount);
+            //ByteCount = (frame == null) ? (ushort)8 : (ushort)(8 + frame.GetLength());
         }
-        public byte[] ToArray()
+        /*public byte[] ToArray()
         {
             List<byte> CompleteFrame = new List<byte>() { Version, (byte)MessageType, (byte)MessageID, StatusCode };
             CompleteFrame.AddRange(BitConverter.GetBytes(SequenceNumber));
@@ -47,14 +47,14 @@ namespace HARTIPC
             }
                 
             return CompleteFrame.ToArray();
-        }
-        private bool ValidFrameForID(MessageID messageID, HARTFrame frame)
+        }*/
+        /*private bool ValidFrameForID(MessageID messageID)
         {
             if (messageID == MessageID.PDU && frame == null)
                 throw new ArgumentException("HARTFrame cannot be null while MessageID is ", messageID.ToString());
             else if (messageID != MessageID.PDU && frame != null)
                 throw new ArgumentException("HARTFrame must be null while MessageID is", messageID.ToString());
             return true;
-        }
+        }*/
     }
 }
