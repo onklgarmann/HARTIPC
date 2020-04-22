@@ -7,7 +7,7 @@ namespace HARTIPC
 {
     public enum MessageType : byte { Request = 0x00, Response = 0x01, Publish = 0x02, NAK = 0x0F } 
     public enum MessageID : byte { Initiate = 0x00, Close = 0x01, KeepAlive = 0x02, PDU = 0x03, Discovery = 0x80 }
-    public class HARTIPFrame 
+    public class HARTIPFrame : IHARTIPFrame
     {
         public byte Version { get; set; }
         public MessageType MessageType { get; set; }
@@ -15,7 +15,7 @@ namespace HARTIPC
         public byte StatusCode { get; set; }
         public ushort SequenceNumber { get; set; }
         public ushort ByteCount { get; set; } = 0x08;
-        public IHARTFrame HARTFrame { get; set; }
+        private byte[] _Payload = null;
         public HARTIPFrame(ushort sequenceNumber, byte version = 0x01, MessageType messageType = MessageType.Request, MessageID messageID = MessageID.KeepAlive, byte statusCode = 0x00)
         {
             Version = version;
@@ -26,9 +26,27 @@ namespace HARTIPC
         }
         public HARTIPFrame(byte[] binary)
         {
-            throw new NotImplementedException();
+            if (binary == null)
+                throw new ArgumentNullException(nameof(binary));
+            else if (binary.Length < 8)
+                throw new ArgumentOutOfRangeException(nameof(binary));
+            Version = binary[0];
+            MessageType = (MessageType)binary[1];
+            MessageID = (MessageID)binary[2];
+            StatusCode = binary[3];
+            byte[] seq = binary[4..6];
+            byte[] btc = binary[6..8];
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(seq, 0, seq.Length);
+                Array.Reverse(btc, 0, btc.Length);
+            }
+            SequenceNumber = BitConverter.ToUInt16(seq);
+            ByteCount = BitConverter.ToUInt16(btc);
+            if (binary.Length > 8)
+                _Payload = binary[8..ByteCount];
         }
-        public byte[] Serialize()
+        public byte[] SerializeHeader()
         {
             List<byte> Header = new List<byte> { Version, (byte)MessageType, (byte)MessageID, StatusCode };
             byte[] seq = BitConverter.GetBytes(SequenceNumber);
@@ -42,27 +60,25 @@ namespace HARTIPC
             Header.AddRange(btc);
             return Header.ToArray();
         }
-        public byte[] Serialize(IHARTFrame frame)
+        public byte[] SerializeFrame()
         {
-            if (frame != null)
-            {
-                ByteCount = (ushort)frame.GetLength();
-                return this.Serialize().Concat(frame.Serialize()).ToArray();
-            }
+            if (_Payload != null)
+                return SerializeHeader().Concat(_Payload).ToArray();
             else
-                throw new ArgumentNullException(nameof(frame));
+                throw new Exception();
         }
         public byte[] Serialize(byte[] binary)
         {
             if (binary != null)
             {
-                ByteCount = (ushort)binary.Length;
-                byte[] CompleteFrame = Serialize();
-                return this.Serialize().Concat(binary).ToArray();
+                _Payload = binary;
+                ByteCount += (ushort)binary.Length;
+                return this.SerializeHeader().Concat(binary).ToArray();
             }
             else
                 throw new ArgumentNullException(nameof(binary));
         }
+        public byte[] GetPayload() { return (byte[])_Payload.Clone(); }
 
     }
 }

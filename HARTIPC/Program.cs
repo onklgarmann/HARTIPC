@@ -13,22 +13,42 @@ namespace HARTIPC
         {
             try
             {
-                //test
-                IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.255"), 5094);
+                var binary = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x00, 0x01, 0x00, 0x08, 0xff, 0xff };
+                HARTIPFrame ipframe = new HARTIPFrame(binary);
+                Console.WriteLine(BitConverter.ToString(ipframe.SerializeFrame()));
+
+                /*IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.255"), 5094);
                 Console.WriteLine(server);
-                byte[] payload = { 0x06, 0x80, 0x00, 0x18, 0x00, 0x50, 0xfe, 0x26, 0x4e, 0x05, 0x07, 0x05, 0x02, 0x0e,
-            0x0c, 0x0b, 0x6f, 0xe4, 0x05, 0x04, 0x00, 0x02, 0x00, 0x00, 0x26, 0x00, 0x26, 0x84, 0x58 };
-                Console.WriteLine(BitConverter.ToString(payload));
+                TcpClient client = new TcpClient();
+                client.Connect("192.168.10.189", 5094);
+
+
+                HARTIPFrame frame = new HARTIPFrame(1, messageID: MessageID.Initiate);
+
+                // Get a client stream for reading and writing.
+                //  Stream stream = client.GetStream();
+
+                NetworkStream stream = client.GetStream();
+                Byte[] data = frame.Serialize(new byte[] { 0x01, 0x00, 0x09, 0x27, 0xc0 });
+
+                stream.Write(data, 0, data.Length);
+
+                Console.WriteLine("Sent: {0}", BitConverter.ToString(data));
+
+                // Receive the TcpServer.response.
+
+                // Buffer to store the response bytes.
+                var header = new Byte[8];
                 HARTDecoder decoder = new HARTDecoder();
-                IHARTFrame frame = decoder.Decode(ref payload);
-                HARTFrameACK frame2 = new HARTFrameACK(new byte[] { 0x80 }, 0x00, new byte[] { 0x00, 0x50, 0xfe, 0x26, 0x4e, 0x05, 0x07, 0x05, 0x02, 0x0e,
-            0x0c, 0x0b, 0x6f, 0xe4, 0x05, 0x04, 0x00, 0x02, 0x00, 0x00, 0x26, 0x00, 0x26, 0x84});
-                Console.WriteLine(BitConverter.ToString(frame2.Serialize()));
+                stream.Read(header, 0, header.Length);
+                Console.WriteLine("Received: {0}", BitConverter.ToString(header));
+                //IHARTFrame receivedFrame = decoder.Decode(ref data);
 
-                Console.WriteLine("\n\n\n");
+                //Console.WriteLine("Received: {0}", BitConverter.ToString(receivedFrame.Serialize()));
 
-                HARTIPFrame header = new HARTIPFrame(1);
-                Console.WriteLine(BitConverter.ToString(header.Serialize(payload)));
+                // Close everything.
+                stream.Close();
+                client.Close();*/
             }
             catch (ArgumentNullException e)
             {
