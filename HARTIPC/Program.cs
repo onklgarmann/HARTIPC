@@ -4,20 +4,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Timers;
 
 namespace HARTIPC
 {
     class Program
     {
+        
         static void Main(string[] args)
         {
+
             try
             {
-                var binary = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x00, 0x01, 0x00, 0x08, 0xff, 0xff };
-                HARTIPFrame ipframe = new HARTIPFrame(binary);
-                Console.WriteLine(BitConverter.ToString(ipframe.SerializeFrame()));
-
-                /*IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.255"), 5094);
+                ushort sequenceNumber = 2;
+                IPEndPoint server = new IPEndPoint(IPAddress.Parse("192.168.10.255"), 5094);
                 Console.WriteLine(server);
                 TcpClient client = new TcpClient();
                 client.Connect("192.168.10.189", 5094);
@@ -41,14 +41,32 @@ namespace HARTIPC
                 var header = new Byte[8];
                 HARTDecoder decoder = new HARTDecoder();
                 stream.Read(header, 0, header.Length);
-                Console.WriteLine("Received: {0}", BitConverter.ToString(header));
-                //IHARTFrame receivedFrame = decoder.Decode(ref data);
-
-                //Console.WriteLine("Received: {0}", BitConverter.ToString(receivedFrame.Serialize()));
-
+                //Console.WriteLine("Received: {0}", BitConverter.ToString(header));
+                Timer timer = new Timer();
+                timer.Interval = 60000;
+                timer.Elapsed += (sender, e) => Timer_Elapsed(sender, e, ref stream, ref sequenceNumber);
+                timer.AutoReset = true;
+                timer.Enabled = true;
+                
                 // Close everything.
-                stream.Close();
-                client.Close();*/
+
+                do
+                {
+                    while (!Console.KeyAvailable)
+                    {
+                        // Do something
+                    }
+                } while (Console.ReadKey(true).Key != ConsoleKey.Escape);
+                frame = new HARTIPFrame(1, messageID: MessageID.Close);
+                data = frame.SerializeHeader();
+                stream.Write(data, 0, data.Length);
+                stream.Read(header, 0, header.Length);
+                do 
+                {
+                    stream.Read(header,0,header.Length);
+                } while (stream.DataAvailable);
+                
+                client.Close();
             }
             catch (ArgumentNullException e)
             {
@@ -61,6 +79,21 @@ namespace HARTIPC
 
             Console.WriteLine("\n Press Enter to continue...");
             Console.Read();
+        }
+        
+
+        private static void Timer_Elapsed(Object source, ElapsedEventArgs e, ref NetworkStream stream, ref ushort sequenceNumber)
+        {
+            HARTIPFrame frame = new HARTIPFrame(sequenceNumber, messageID: MessageID.KeepAlive);
+            Byte[] data = frame.SerializeHeader();
+            stream.Write(data, 0, data.Length);
+            sequenceNumber++;
+            frame = new HARTIPFrame(sequenceNumber, messageID: MessageID.PDU);
+            HARTFrame PDU = new HARTFrame(new byte[]{ 0x00 }, 3);
+            data = frame.Serialize(PDU.Serialize());
+            stream.Write(data, 0, data.Length);
+            Console.WriteLine("Sent: {0}", BitConverter.ToString(data));
+            sequenceNumber++;
         }
     }
 }

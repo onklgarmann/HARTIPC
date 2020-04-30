@@ -62,9 +62,14 @@ namespace HARTIPC
             }
             throw new ArgumentNullException(nameof(address));
         }
-        public byte[] Serialize() 
+        public byte[] Serialize()
         {
-            return this.ToByteList().ToArray();
+            List<byte> CompleteFrame = ToByteList();
+            byte Checksum = 0x00;
+            foreach (byte b in CompleteFrame)
+                Checksum ^= b;
+            CompleteFrame.Add(Checksum);
+            return CompleteFrame.ToArray();
         }
         protected virtual List<byte> ToByteList()
         {
