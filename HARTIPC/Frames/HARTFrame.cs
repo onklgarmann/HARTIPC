@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace HARTIPC
@@ -17,10 +18,20 @@ namespace HARTIPC
     }
     public enum FrameType { STX, ACK };
     public enum AddressFormat { Polling, UniqueID }
-    public class HARTFrame : IHARTFrame
+
+    /// <summary>
+    /// HARTFrame-class
+    /// This object holds the binary info from a HART-frame. Serializable.
+    /// </summary>
+    public class HARTFrame : IHARTFrame, ISerializable
     {
-        private byte[] _Address;
-        private byte _HeaderLength;
+        #region fields and properties
+        /// <summary>
+        /// Start delimiter, indicates AddressFormat and FrameType,
+        /// bit 7 sets long(1) or short(0) address
+        /// bit 0-2 sets master-to-slave(STX, 010), or slave-to-master(ACK, 110)
+        /// burst(BACK, 001) is not implemented. 
+        /// </summary>
         private byte _StartDelimiter =>
            (this.AddressFormat, this.FrameType) switch
            {
@@ -30,42 +41,58 @@ namespace HARTIPC
                { AddressFormat: AddressFormat.UniqueID, FrameType: FrameType.ACK } => 0x86,
                { AddressFormat: _, FrameType: _ } => throw new ArgumentNullException(nameof(_StartDelimiter)),
            };
-        public AddressFormat AddressFormat { get; set; } = AddressFormat.Polling;
-        public FrameType FrameType { get; set; } = FrameType.STX;  // always STX, ACK will always have payload.
+        /// <summary>
+        /// Address in bytes, 1 or 5 bytes.
+        /// </summary>
+        private byte[] _Address;
+        /// <summary>
+        /// AddressFormat is either Polling(1 byte), or UniqueID(5 bytes)
+        /// </summary>
+        public AddressFormat AddressFormat { get; set; } = AddressFormat.UniqueID;
+        /// <summary>
+        /// FrameType is STX or ACK
+        /// </summary>
+        public FrameType FrameType { get; set; } = FrameType.STX;
+        /// <summary>
+        /// Command byte
+        /// </summary>
         public byte Command { get; private set; }
+        /// <summary>
+        /// ByteCount represents the number of bytes between header and checksum.
+        /// </summary>
         public byte ByteCount { get; protected set; } = 0x00;
-
-        public HARTFrame(byte[] address, byte command)
+        /// <summary>
+        /// Response code indicates outgoing communications error
+        /// ACK-frames only
+        /// </summary>
+        public byte ResponseCode { get; private set; }
+        /// <summary>
+        /// Status code indicates device status
+        /// ACK-frames only
+        /// </summary>
+        public byte StatusCode { get; private set; }
+        /// <summary>
+        /// Payload, if there is one
+        /// </summary>
+        internal byte[] _Payload;
+        /// <summary>
+        /// Checksum is XOR of all bytes
+        /// </summary>
+        public byte Checksum { get; private set; }
+        #endregion
+        public HARTFrame(byte[] address, byte command, byte[] payload = null)
         {
-            if (ValidAddress(ref address))
-                _Address = address;
-            Command = command;
+            
         }
 
-        private bool ValidAddress(ref byte[] address)
+        private bool IsValid()
         {
-            if (address != null)
-            {
-                switch (address.Length)
-                {
-                    case 1:
-                        AddressFormat = AddressFormat.Polling;
-                        _HeaderLength = 0x04;
-                        return true;
-                    case 5:
-                        AddressFormat = AddressFormat.UniqueID;
-                        _HeaderLength = 0x04;
-                        return true;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(address));
-                }
-            }
-            throw new ArgumentNullException(nameof(address));
+            return true;
         }
         public byte[] Serialize()
         {
             List<byte> CompleteFrame = ToByteList();
-            byte Checksum = 0x00;
+            Checksum = 0x00;
             foreach (byte b in CompleteFrame)
                 Checksum ^= b;
             CompleteFrame.Add(Checksum);
@@ -81,60 +108,7 @@ namespace HARTIPC
             return CompleteFrame;
         }
         public byte[] GetAddress() { return (byte[])_Address.Clone(); }
-        public int GetLength() { return (_HeaderLength + ByteCount + 1); }
-    }
-    public class HARTFrameWithPayload : HARTFrame
-    {
-        internal byte[] _Payload;
-        public byte Checksum { get; private set; } = 0x00;  // checksum = XOR of all bytes.
-        public HARTFrameWithPayload(byte[] address, byte command, byte[] payload) : base(address, command)
-        {
-            if (payload != null)
-            {
-                _Payload = payload;
-                ByteCount = (byte)(_Payload.Length);
-                
-            }
-            else
-                throw new ArgumentNullException(nameof(payload));
-        }
-        protected override List<byte> ToByteList()
-        {
-            List<byte> CompleteFrame = base.ToByteList();
-            CompleteFrame.AddRange(_Payload);
-            CalcChecksum();
-            CompleteFrame.Add(Checksum);
-            return CompleteFrame;
-        }
-        internal void CalcChecksum()
-        {
-            Checksum = 0x00;
-            foreach(byte b in base.ToByteList())
-            {
-                Checksum ^= b;   
-            }
-            foreach (byte b in _Payload)
-            {
-                Checksum ^= b;
-            }
-        }
-        public byte[] GetPayload() { return _Payload; }
-    }
-    public class HARTFrameACK : HARTFrameWithPayload
-    {
-        internal new byte[] _Payload;
-        public byte ResponseCode { get; private set; }  // responsecode only in ACK-frames.
-        public byte DeviceStatus { get; private set; }  // Device status only in ACK-frames
-        public HARTFrameACK(byte[] address, byte command, byte[] payload) : base(address, command, payload)
-        {
-            FrameType = FrameType.ACK;
-            if (payload == null)
-                throw new ArgumentNullException(nameof(payload));
-            else if (payload.Length < 2)
-                throw new ArgumentOutOfRangeException(nameof(payload));
-            ResponseCode = payload[0];
-            DeviceStatus = payload[1];
-            _Payload = payload[2..^1];
-        }
+        public int GetLength() { return (_Address.Length + ByteCount + 1); }
+        public byte[] GetPayload() { return (byte[])_Payload.Clone(); }
     }
 }
