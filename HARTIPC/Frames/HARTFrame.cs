@@ -6,16 +6,6 @@ using System.Text;
 
 namespace HARTIPC
 {
-    public interface IHARTFrame
-    {
-        public AddressFormat AddressFormat { get; }
-        public FrameType FrameType { get; }
-        public byte Command { get; }
-        public byte ByteCount { get; }
-        public byte[] GetAddress();
-        public int GetLength();
-        public byte[] Serialize();
-    }
     public enum FrameType { STX, ACK };
     public enum AddressFormat { Polling, UniqueID }
 
@@ -23,15 +13,15 @@ namespace HARTIPC
     /// HARTFrame-class
     /// This object holds the binary info from a HART-frame. Serializable.
     /// </summary>
-    public class HARTFrame : IHARTFrame, ISerializable
+    public class HARTFrame
     {
         #region fields and properties
-        /// <summary>
+        /// <value>
         /// Start delimiter, indicates AddressFormat and FrameType,
         /// bit 7 sets long(1) or short(0) address
         /// bit 0-2 sets master-to-slave(STX, 010), or slave-to-master(ACK, 110)
         /// burst(BACK, 001) is not implemented. 
-        /// </summary>
+        /// </value>
         private byte _StartDelimiter =>
            (this.AddressFormat, this.FrameType) switch
            {
@@ -41,74 +31,161 @@ namespace HARTIPC
                { AddressFormat: AddressFormat.UniqueID, FrameType: FrameType.ACK } => 0x86,
                { AddressFormat: _, FrameType: _ } => throw new ArgumentNullException(nameof(_StartDelimiter)),
            };
-        /// <summary>
+           
+        /// <value>
         /// Address in bytes, 1 or 5 bytes.
-        /// </summary>
+        /// </value>
         private byte[] _Address;
-        /// <summary>
+        /// <value>
         /// AddressFormat is either Polling(1 byte), or UniqueID(5 bytes)
-        /// </summary>
+        /// </value>
         public AddressFormat AddressFormat { get; set; } = AddressFormat.UniqueID;
-        /// <summary>
+        /// <value>
         /// FrameType is STX or ACK
-        /// </summary>
+        /// </value>
         public FrameType FrameType { get; set; } = FrameType.STX;
-        /// <summary>
+        /// <value>
         /// Command byte
-        /// </summary>
+        /// </value>
         public byte Command { get; private set; }
-        /// <summary>
+        /// <value>
         /// ByteCount represents the number of bytes between header and checksum.
-        /// </summary>
+        /// </value>
         public byte ByteCount { get; protected set; } = 0x00;
-        /// <summary>
+        /// <value>
         /// Response code indicates outgoing communications error
         /// ACK-frames only
-        /// </summary>
+        /// </value>
         public byte ResponseCode { get; private set; }
-        /// <summary>
+        /// <value>
         /// Status code indicates device status
         /// ACK-frames only
-        /// </summary>
+        /// </value>
         public byte StatusCode { get; private set; }
-        /// <summary>
+        /// <value>
         /// Payload, if there is one
-        /// </summary>
+        /// </value>
         internal byte[] _Payload;
-        /// <summary>
+        /// <value>
         /// Checksum is XOR of all bytes
-        /// </summary>
+        /// </value>
         public byte Checksum { get; private set; }
         #endregion
-        public HARTFrame(byte[] address, byte command, byte[] payload = null)
+        /// <summary>
+        /// Constructor for HARTFrame object from values
+        /// </summary>
+        /// <exception cref="System.ArgumentOutOfRangeException">Thrown when arguments are out of range</exception>
+        /// <exception cref="System.ArgumentNullException">Thrown when non-nullable argumentes are null</exception>
+        /// <param name="address">Byte array with 1 or 5 bytes.</param>
+        /// <param name="command">Single byte</param>
+        /// <param name="payload">Optional byte array</param>
+        public HARTFrame(byte[] address, byte command = 0x03, byte[] payload = null)
         {
+            // input validation
+            if (address == null)
+                throw new ArgumentNullException(nameof(address));
+            else if (address.Length != 1 && address.Length != 5)
+                throw new ArgumentOutOfRangeException(nameof(address));
+            _Address = address;
+            if (address.Length == 1)
+                AddressFormat = AddressFormat.Polling;
+            Command = command;
+            if (payload != null)
+            { 
+                _Payload = payload; ByteCount = (byte)payload.Length; 
+            }
+            Checksum = CalculateChecksum();
+        }
+        /// <summary>
+        /// Constructor for HARTFrame from byte array
+        /// </summary>
+        /// <exception cref="System.ArgumentOutOfRangeException">Thrown when <paramref name="binary"/> length is less than 8</exception>
+        /// <exception cref="System.ArgumentNullException">Thrown if <paramref name="binary"/> is null</exception>
+        /// <param name="binary">Byte array, min. length 8</param>
+        public HARTFrame(byte[] binary)
+        {
+            // input validation
+            if (binary == null)
+                throw new ArgumentNullException(nameof(binary));
             
+            // pull AddressFormat and FrameType from first byte.
+            AddressFormat = ((binary[0] & (1 << 7)) == 0) ? AddressFormat.Polling : AddressFormat.UniqueID;
+            FrameType = ((binary[0] & (1 << 2)) == 0) ? FrameType.STX : FrameType.ACK;
+            var offset = (AddressFormat == AddressFormat.Polling) ? 0 : 4;
+            // input validation
+            if (binary.Length < (5 + offset))
+                throw new ArgumentOutOfRangeException(nameof(binary));
+            _Address = binary[1..(2 + offset)];
+            Command = binary[2 + offset];
+            ByteCount = binary[3 + offset];
+            if (ByteCount >= 2 && FrameType == FrameType.ACK)
+            {
+                ResponseCode = binary[4 + offset];
+                StatusCode = binary[5 + offset];
+                offset += 2;
+            }
+            if (ByteCount > 0)
+                _Payload = binary[(4 + offset)..(4 + offset + ByteCount)];
+            Checksum = binary[4 + offset + ByteCount];
+            if (CalculateChecksum() != Checksum)
+                throw new FormatException();
         }
-
-        private bool IsValid()
+        /// <summary>
+        /// Calculates XOR of all bytes in frame
+        /// </summary>
+        /// <returns>Single byte</returns>
+        private byte CalculateChecksum()
         {
-            return true;
+            byte chksum = 0x00;
+            chksum ^= _StartDelimiter;
+            foreach (byte b in _Address)
+                chksum ^= b;
+            chksum ^= Command;
+            chksum ^= ByteCount;
+            chksum ^= ResponseCode;
+            chksum ^= StatusCode;
+            if (_Payload != null)
+            {
+                foreach (byte b in _Payload)
+                    chksum ^= b;
+            }
+            return chksum;
         }
+        /// <summary>
+        /// Formats complete frame as a byte array.
+        /// </summary>
+        /// <returns>HARTFrame as a byte array</returns>
         public byte[] Serialize()
-        {
-            List<byte> CompleteFrame = ToByteList();
-            Checksum = 0x00;
-            foreach (byte b in CompleteFrame)
-                Checksum ^= b;
-            CompleteFrame.Add(Checksum);
-            return CompleteFrame.ToArray();
-        }
-        protected virtual List<byte> ToByteList()
         {
             List<byte> CompleteFrame = new List<byte>(); // use list to build array
             CompleteFrame.Add(_StartDelimiter);
             CompleteFrame.AddRange(_Address);
             CompleteFrame.Add(Command);
             CompleteFrame.Add(ByteCount);
-            return CompleteFrame;
+            if (FrameType == FrameType.ACK)
+            {
+                CompleteFrame.Add(ResponseCode);
+                CompleteFrame.Add(StatusCode);
+            }
+            if (_Payload != null)
+                CompleteFrame.AddRange(_Payload);
+            CompleteFrame.Add(Checksum);
+            return CompleteFrame.ToArray();
         }
+        /// <summary>
+        /// Gets address
+        /// </summary>
+        /// <returns>Byte array</returns>
         public byte[] GetAddress() { return (byte[])_Address.Clone(); }
-        public int GetLength() { return (_Address.Length + ByteCount + 1); }
+        /// <summary>
+        /// Gets length
+        /// </summary>
+        /// <returns>Integer</returns>
+        public int GetLength() { return (4 + ByteCount + _Address.Length); }
+        /// <summary>
+        /// Get data payload
+        /// </summary>
+        /// <returns>Byte array</returns>
         public byte[] GetPayload() { return (byte[])_Payload.Clone(); }
     }
 }

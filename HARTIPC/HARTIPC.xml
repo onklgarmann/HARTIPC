@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>HARTIPC</name>
+    </assembly>
+    <members>
+        <member name="T:HARTIPC.HARTFrame">
+            <summary>
+            HARTFrame-class
+            This object holds the binary info from a HART-frame. Serializable.
+            </summary>
+        </member>
+        <member name="P:HARTIPC.HARTFrame._StartDelimiter">
+            <value>
+            Start delimiter, indicates AddressFormat and FrameType,
+            bit 7 sets long(1) or short(0) address
+            bit 0-2 sets master-to-slave(STX, 010), or slave-to-master(ACK, 110)
+            burst(BACK, 001) is not implemented. 
+            </value>
+        </member>
+        <member name="F:HARTIPC.HARTFrame._Address">
+            <value>
+            Address in bytes, 1 or 5 bytes.
+            </value>
+        </member>
+        <member name="P:HARTIPC.HARTFrame.AddressFormat">
+            <value>
+            AddressFormat is either Polling(1 byte), or UniqueID(5 bytes)
+            </value>
+        </member>
+        <member name="P:HARTIPC.HARTFrame.FrameType">
+            <value>
+            FrameType is STX or ACK
+            </value>
+        </member>
+        <member name="P:HARTIPC.HARTFrame.Command">
+            <value>
+            Command byte
+            </value>
+        </member>
+        <member name="P:HARTIPC.HARTFrame.ByteCount">
+            <value>
+            ByteCount represents the number of bytes between header and checksum.
+            </value>
+        </member>
+        <member name="P:HARTIPC.HARTFrame.ResponseCode">
+            <value>
+            Response code indicates outgoing communications error
+            ACK-frames only
+            </value>
+        </member>
+        <member name="P:HARTIPC.HARTFrame.StatusCode">
+            <value>
+            Status code indicates device status
+            ACK-frames only
+            </value>
+        </member>
+        <member name="F:HARTIPC.HARTFrame._Payload">
+            <value>
+            Payload, if there is one
+            </value>
+        </member>
+        <member name="P:HARTIPC.HARTFrame.Checksum">
+            <value>
+            Checksum is XOR of all bytes
+            </value>
+        </member>
+        <member name="M:HARTIPC.HARTFrame.#ctor(System.Byte[],System.Byte,System.Byte[])">
+            <summary>
+            Constructor for HARTFrame object from values
+            </summary>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when arguments are out of range</exception>
+            <exception cref="T:System.ArgumentNullException">Thrown when non-nullable argumentes are null</exception>
+            <param name="address">Byte array with 1 or 5 bytes.</param>
+            <param name="command">Single byte</param>
+            <param name="payload">Optional byte array</param>
+        </member>
+        <member name="M:HARTIPC.HARTFrame.#ctor(System.Byte[])">
+            <summary>
+            Constructor for HARTFrame from byte array
+            </summary>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when <paramref name="binary"/> length is less than 8</exception>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="binary"/> is null</exception>
+            <param name="binary">Byte array, min. length 8</param>
+        </member>
+        <member name="M:HARTIPC.HARTFrame.CalculateChecksum">
+            <summary>
+            Calculates XOR of all bytes in frame
+            </summary>
+            <returns>Single byte</returns>
+        </member>
+        <member name="M:HARTIPC.HARTFrame.Serialize">
+            <summary>
+            Formats complete frame as a byte array.
+            </summary>
+            <returns>HARTFrame as a byte array</returns>
+        </member>
+        <member name="M:HARTIPC.HARTFrame.GetAddress">
+            <summary>
+            Gets address
+            </summary>
+            <returns>Byte array</returns>
+        </member>
+        <member name="M:HARTIPC.HARTFrame.GetLength">
+            <summary>
+            Gets length
+            </summary>
+            <returns>Integer</returns>
+        </member>
+        <member name="M:HARTIPC.HARTFrame.GetPayload">
+            <summary>
+            Get data payload
+            </summary>
+            <returns>Byte array</returns>
+        </member>
+    </members>
+</doc>

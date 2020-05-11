@@ -4,9 +4,7 @@ using System.Text;
 
 namespace HARTIPC 
 { 
-    public enum StartDelimiter : byte { PollingSTX = 0x02, PollingACK = 0x06, 
-        UniqueSTX = 0x82, UniqueACK = 0x86 }
-    public class HARTDecoder
+    /*public class HARTDecoder
     {
         private byte _Checksum { get; set; }
         private AddressFormat _AddressFormat { get; set; }
@@ -50,6 +48,7 @@ namespace HARTIPC
             if (_Checksum != binary[(4 + _Offset + _ByteCount)])
                 throw new Exception();
         }
-
+        
     }
+    */
 }
