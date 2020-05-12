@@ -4,7 +4,7 @@ using System.Text;
 
 namespace HARTIPC
 {
-    interface IHARTIPFrame
+    /*interface IHARTIPFrame
     {
         byte Version { get; set; }
         MessageType MessageType { get; set; }
@@ -12,5 +12,5 @@ namespace HARTIPC
         byte StatusCode { get; set; }
         ushort SequenceNumber { get; set; }
         ushort ByteCount { get; set; }
-    }
+    }*/
 }

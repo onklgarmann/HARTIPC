@@ -6,8 +6,30 @@ using System.Text;
 
 namespace HARTIPC
 {
-    public enum FrameType { STX, ACK };
-    public enum AddressFormat { Polling, UniqueID }
+    /// <summary>
+    /// Predefined type to indicate message flow
+    /// </summary>
+    public enum FrameType { 
+        /// <summary>
+        /// Start of transmission, master-to-slave.
+        /// </summary>
+        STX, 
+        /// <summary>
+        /// Acknowledge message, slave-to-master.
+        /// </summary>
+        ACK };
+    /// <summary>
+    /// Predefined type to indicate short address(1 byte), or unique ID(long address, 5 bytes).
+    /// </summary>
+    public enum AddressFormat { 
+        /// <summary>
+        /// Polling address, 1 byte
+        /// </summary>
+        Polling, 
+        /// <summary>
+        /// Unique ID, long address, 5 bytes
+        /// </summary>
+        UniqueID }
 
     /// <summary>
     /// HARTFrame-class
@@ -118,17 +140,20 @@ namespace HARTIPC
             _Address = binary[1..(2 + offset)];
             Command = binary[2 + offset];
             ByteCount = binary[3 + offset];
+            if (4 + offset + ByteCount > binary.Length)
+                throw new Exception(nameof(ByteCount));
+            Console.WriteLine(ByteCount);
             if (ByteCount >= 2 && FrameType == FrameType.ACK)
             {
                 ResponseCode = binary[4 + offset];
                 StatusCode = binary[5 + offset];
-                offset += 2;
+                _Payload = binary[(6 + offset)..(4 + offset + ByteCount)];
             }
-            if (ByteCount > 0)
+            else if (ByteCount > 0)
                 _Payload = binary[(4 + offset)..(4 + offset + ByteCount)];
             Checksum = binary[4 + offset + ByteCount];
             if (CalculateChecksum() != Checksum)
-                throw new FormatException();
+                throw new Exception(nameof(Checksum));
         }
         /// <summary>
         /// Calculates XOR of all bytes in frame

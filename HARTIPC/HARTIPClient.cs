@@ -30,7 +30,7 @@ namespace HARTIPC
         {
             byte[] initiate60sTimeout = new byte[] { 0x01, 0x00, 0x09, 0x27, 0xc0 };
             HARTIPFrame frame = new HARTIPFrame(SequenceNumber, messageID: MessageID.Initiate);
-            frame.Serialize(initiate60sTimeout);
+            //frame.Serialize(initiate60sTimeout);
         }
 
         public void Dispose()

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace HARTIPC 
 { 
-    /*public class HARTDecoder
+    public class HARTDecoder
     {
         private byte _Checksum { get; set; }
         private AddressFormat _AddressFormat { get; set; }
@@ -50,5 +50,5 @@ namespace HARTIPC
         }
         
     }
-    */
+    
 }

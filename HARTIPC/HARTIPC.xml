@@ -4,6 +4,36 @@
         <name>HARTIPC</name>
     </assembly>
     <members>
+        <member name="T:HARTIPC.FrameType">
+            <summary>
+            Predefined type to indicate message flow
+            </summary>
+        </member>
+        <member name="F:HARTIPC.FrameType.STX">
+            <summary>
+            Start of transmission, master-to-slave.
+            </summary>
+        </member>
+        <member name="F:HARTIPC.FrameType.ACK">
+            <summary>
+            Acknowledge message, slave-to-master.
+            </summary>
+        </member>
+        <member name="T:HARTIPC.AddressFormat">
+            <summary>
+            Predefined type to indicate short address(1 byte), or unique ID(long address, 5 bytes).
+            </summary>
+        </member>
+        <member name="F:HARTIPC.AddressFormat.Polling">
+            <summary>
+            Polling address, 1 byte
+            </summary>
+        </member>
+        <member name="F:HARTIPC.AddressFormat.UniqueID">
+            <summary>
+            Unique ID, long address, 5 bytes
+            </summary>
+        </member>
         <member name="T:HARTIPC.HARTFrame">
             <summary>
             HARTFrame-class
@@ -112,6 +142,152 @@
             Get data payload
             </summary>
             <returns>Byte array</returns>
+        </member>
+        <member name="T:HARTIPC.MessageType">
+            <summary>
+            MessageTypes represents HART-IP flow-control with one byte.
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageType.Request">
+            <summary>
+            Request-message = 0
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageType.Response">
+            <summary>
+            Response-message = 1
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageType.Publish">
+            <summary>
+            Publish-message = 2
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageType.NAK">
+            <summary>
+            NAK-message = 15
+            </summary>
+        </member>
+        <member name="T:HARTIPC.MessageID">
+            <summary>
+            MessageID representes HART-IP-frames function with one byte
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageID.Initiate">
+            <summary>
+            Initiate is sent to open a connection.
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageID.Close">
+            <summary>
+            Close is sent to close the connection.
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageID.KeepAlive">
+            <summary>
+            KeepAlives are sent regularly to keep the connection open.
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageID.PDU">
+            <summary>
+            PDU indicates that a HART-frame is attached as data.
+            </summary>
+        </member>
+        <member name="F:HARTIPC.MessageID.Discovery">
+            <summary>
+            Discovery is sent as a broadcast on the network. Not implemented.
+            </summary>
+        </member>
+        <member name="T:HARTIPC.HARTIPFrame">
+            <summary>
+            Represents a HART-IP-frame with or without data payload.
+            </summary>
+        </member>
+        <member name="P:HARTIPC.HARTIPFrame.Version">
+            <summary>
+            HART-IP version, single byte
+            </summary>
+        </member>
+        <member name="P:HARTIPC.HARTIPFrame.MessageType">
+            <summary>
+            MessageType, predefined type
+            </summary>
+        </member>
+        <member name="P:HARTIPC.HARTIPFrame.MessageID">
+            <summary>
+            MessageID, predefined type
+            </summary>
+        </member>
+        <member name="P:HARTIPC.HARTIPFrame.StatusCode">
+            <summary>
+            StatusCode, single byte
+            </summary>
+        </member>
+        <member name="P:HARTIPC.HARTIPFrame.SequenceNumber">
+            <summary>
+            SequenceNumber, 2 bytes
+            </summary>
+        </member>
+        <member name="P:HARTIPC.HARTIPFrame.ByteCount">
+            <summary>
+            Bytecount, 2 bytes.  Default 8 for header without payload.
+            </summary>
+        </member>
+        <member name="F:HARTIPC.HARTIPFrame._Payload">
+            <summary>
+            Optional payload, byte array.
+            </summary>
+        </member>
+        <member name="M:HARTIPC.HARTIPFrame.#ctor(System.UInt16,System.Byte,HARTIPC.MessageType,HARTIPC.MessageID,System.Byte,System.Byte[])">
+            <summary>
+            Constructor for <c>HARTIPFrame</c> that takes all values with defaults set up for KeepAlive-frame.
+            </summary>
+            <param name="sequenceNumber">ushort</param>
+            <param name="version">single byte</param>
+            <param name="messageType">MessageType</param>
+            <param name="messageID">MessageID</param>
+            <param name="statusCode">single byte</param>
+            <param name="payload">optional byte array</param>
+        </member>
+        <member name="M:HARTIPC.HARTIPFrame.#ctor(System.Byte[])">
+            <summary>
+            Constructor for HARTIPFrame-class. Populates values from byte array.
+            </summary>
+            <param name="binary">byte array</param>
+        </member>
+        <member name="M:HARTIPC.HARTIPFrame.GetHeader">
+            <summary>
+            Gets the first 8 bytes of the HART-IP frame.
+            </summary>
+            <returns>HART-IP header as byte array</returns>
+        </member>
+        <member name="M:HARTIPC.HARTIPFrame.Serialize">
+            <summary>
+            Serializes entire HART-IP frame.
+            </summary>
+            <returns>HART-IP frame as byte array</returns>
+        </member>
+        <member name="M:HARTIPC.HARTIPFrame.GetPayload">
+            <summary>
+            Gets data payload from HART-IP frame.
+            </summary>
+            <returns>Payload as byte array</returns>
+        </member>
+        <member name="T:HARTIPC.Properties.Resources">
+            <summary>
+              A strongly-typed resource class, for looking up localized strings, etc.
+            </summary>
+        </member>
+        <member name="P:HARTIPC.Properties.Resources.ResourceManager">
+            <summary>
+              Returns the cached ResourceManager instance used by this class.
+            </summary>
+        </member>
+        <member name="P:HARTIPC.Properties.Resources.Culture">
+            <summary>
+              Overrides the current thread's CurrentUICulture property for all
+              resource lookups using this strongly typed resource class.
+            </summary>
         </member>
     </members>
 </doc>
