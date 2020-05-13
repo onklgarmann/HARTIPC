@@ -142,7 +142,6 @@ namespace HARTIPC
             ByteCount = binary[3 + offset];
             if (4 + offset + ByteCount > binary.Length)
                 throw new Exception(nameof(ByteCount));
-            Console.WriteLine(ByteCount);
             if (ByteCount >= 2 && FrameType == FrameType.ACK)
             {
                 ResponseCode = binary[4 + offset];
@@ -151,7 +150,7 @@ namespace HARTIPC
             }
             else if (ByteCount > 0)
                 _Payload = binary[(4 + offset)..(4 + offset + ByteCount)];
-            Checksum = binary[4 + offset + ByteCount];
+            Checksum = ((4 + offset + ByteCount) >= binary.Length) ? CalculateChecksum() : binary[4 + offset + ByteCount];
             if (CalculateChecksum() != Checksum)
                 throw new Exception(nameof(Checksum));
         }

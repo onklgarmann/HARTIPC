@@ -6,7 +6,7 @@
           "files": [
             "**.csproj"
           ],
-          "src": "C:\\Users\\Garmann\\source\\repos\\HARTIPC2\\HARTIPCTests"
+          "src": "C:\\Users\\Garmann\\source\\repos\\HARTIPC2\\HARTIPC.csproj"
         }
       ],
       "dest": "api",
