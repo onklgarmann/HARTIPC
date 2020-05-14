@@ -13,10 +13,7 @@ namespace HARTIPC
         }
         public void OnDataEntryReceived(object sender, DataEntryEventArgs dataEntryEventArgs)
         {
-            Console.WriteLine(BitConverter.ToString(dataEntryEventArgs.Address));
-            Console.WriteLine(dataEntryEventArgs.datetime);
-            //System.Threading.Thread.Sleep(10000);
-            Console.WriteLine(dataEntryEventArgs.datetime);
+            
         }
     }
 }

@@ -131,7 +131,7 @@ namespace HARTIPC
             SequenceNumber = BitConverter.ToUInt16(seq);
             ByteCount = BitConverter.ToUInt16(btc);
             if (ByteCount > binary.Length)
-                throw new Exception(nameof(ByteCount));
+                throw new ArgumentOutOfRangeException(nameof(binary));
             // Stash overflowing bytes in payload, but only 
             else if (binary.Length > 8)
                 _Payload = binary[8..ByteCount];

@@ -211,5 +211,29 @@ namespace HARTIPC
         /// </summary>
         /// <returns>Byte array</returns>
         public byte[] GetPayload() { return (byte[])_Payload.Clone(); }
+        /// <summary>
+        /// Sets 2 MSBs to 10 in combined DeviceType and DeviceID
+        /// </summary>
+        /// <param name="DeviceType">2 bytes</param>
+        /// <param name="DeviceID">3 bytes</param>
+        /// <returns>5-byte array</returns>
+        public static byte[] GetAddress(byte[] DeviceType, byte[] DeviceID)
+        {
+            byte[] address = new byte[5];
+            DeviceType[0] |= 1 << 7;
+            DeviceType[0] |= 0 << 6;
+            address[0] = DeviceType[0];
+            address[1] = DeviceType[1];
+            address[2] = DeviceID[0];
+            address[3] = DeviceID[1];
+            address[4] = DeviceID[2];
+            return address;
+        }
+        public static byte[] GetAddress(byte[] Address)
+        {
+            Address[0] |= 1 << 7;
+            Address[0] |= 0 << 6;
+            return Address;
+        }
     }
 }

@@ -33,21 +33,26 @@ namespace HARTIPC
         NetworkStream stream;
         IPEndPoint server { get; set; }
         ushort SequenceNumber { get; set; } = 1;
-        bool IsConnected { get; set; }
         public event EventHandler<DataEntryEventArgs> DataEntryReceived;
-        
+        public byte[] GatewayAddress { get; set; }
+        public string GatewayName { get; set; }
+        List<Tuple<byte[], string>> Devices { get; set; } = new List<Tuple<byte[], string>>();
         public HARTIPClient(IPEndPoint server)
         {
             this.client = new TcpClient();
             this.server = server;
-            
+            Connect();
+            if (Initiate(600000))
+            {
+                MapNetwork();
+            }
         }
 
         public void Connect()
         {
             client.Connect(server.Address.ToString(), server.Port);
             stream = client.GetStream();
-            IsConnected = true;
+            
         }
         public bool Initiate(int timeout)
         {
@@ -85,9 +90,32 @@ namespace HARTIPC
             var buffer = new Byte[256];
             stream.Read(buffer, 0, buffer.Length);
             var response = new HARTFrame(new HARTIPFrame(buffer).GetPayload());
+            SequenceNumber++;
             if (response.Command == 77)
-                OnDataEntryReceived(new HARTFrame(response.GetPayload()[2..]));
+            {
+                var innerHart = new HARTFrame(response.GetPayload()[2..]);
+                if (innerHart.Command == 3)
+                    OnDataEntryReceived(innerHart);
+            }
             return response;
+        }
+        private void MapNetwork()
+        {
+            var frame0 = new HARTFrame(new byte[] { 0x00 }, 0);
+            var response0 = PDU(frame0);
+            GatewayAddress = HARTFrame.GetAddress(response0.GetPayload()[1..3], response0.GetPayload()[9..12]);
+            var frame20 = new HARTFrame(GatewayAddress, 20);
+            var response20 = PDU(frame20);
+            GatewayName = Encoding.ASCII.GetString(response20.GetPayload()).TrimEnd('\0');
+            var frame74 = new HARTFrame(GatewayAddress, 74);
+            var response74 = PDU(frame74);
+            var deviceCount = BitConverter.ToInt16(response74.GetPayload()[3..5].Reverse().ToArray())-1;
+            for (ushort i = 1; i <= deviceCount; i++)
+            {
+                var frame84 = new HARTFrame(GatewayAddress, 84, BitConverter.GetBytes(i).Reverse().ToArray());
+                var response84 = PDU(frame84);
+                Devices.Add(new Tuple<byte[], string>(HARTFrame.GetAddress(response84.GetPayload()[6..11]), Encoding.ASCII.GetString(response84.GetPayload())[12..44].TrimEnd('\0')));
+            }
         }
         protected virtual void OnDataEntryReceived(HARTFrame frame)
         {

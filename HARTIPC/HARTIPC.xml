@@ -143,6 +143,14 @@
             </summary>
             <returns>Byte array</returns>
         </member>
+        <member name="M:HARTIPC.HARTFrame.GetAddress(System.Byte[],System.Byte[])">
+            <summary>
+            Sets 2 MSBs to 10 in combined DeviceType and DeviceID
+            </summary>
+            <param name="DeviceType">2 bytes</param>
+            <param name="DeviceID">3 bytes</param>
+            <returns>5-byte array</returns>
+        </member>
         <member name="T:HARTIPC.MessageType">
             <summary>
             MessageTypes represents HART-IP flow-control with one byte.
