@@ -1,60 +1,71 @@
-﻿using System;
+﻿using HARTIPC.Data;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Timers;
 
 namespace HARTIPC
 {
-    class DataEntryEventArgs : EventArgs
-    {
-        public DataEntryEventArgs(HARTFrame frame)
-        {
-            Address = frame.GetAddress();
-            Current = BitConverter.ToSingle(frame.GetPayload()[0..4].Reverse().ToArray());
-            Variables = new List<Tuple<byte, float>>() { new Tuple<byte, float>(frame.GetPayload()[4], BitConverter.ToSingle(frame.GetPayload()[5..9].Reverse().ToArray())) };
-            if (frame.GetPayload().Length >= 14)
-                Variables.Add(new Tuple<byte, float>(frame.GetPayload()[9], BitConverter.ToSingle(frame.GetPayload()[10..14].Reverse().ToArray())));
-            if (frame.GetPayload().Length >= 19)
-                Variables.Add(new Tuple<byte, float>(frame.GetPayload()[14], BitConverter.ToSingle(frame.GetPayload()[15..19].Reverse().ToArray())));
-            if (frame.GetPayload().Length >= 24)
-                Variables.Add(new Tuple<byte, float>(frame.GetPayload()[19], BitConverter.ToSingle(frame.GetPayload()[20..24].Reverse().ToArray())));
-        }
-        public DateTime datetime = DateTime.UtcNow;
-        public byte[] Address { get; set; }
-        public float Current { get; set; }
-        public List<Tuple<byte, float>> Variables { get; set; }
-    }
+    
     class HARTIPClient : IDisposable
     {
         TcpClient client;
         NetworkStream stream;
         IPEndPoint server { get; set; }
         ushort SequenceNumber { get; set; } = 1;
-        public event EventHandler<DataEntryEventArgs> DataEntryReceived;
+        public event EventHandler<DataEntryEventArgs> DataEntryReceivedEvent;
+        public event EventHandler<GatewayDataArgs> NewGatewayEvent;
+        public event EventHandler<DeviceDataArgs> NewDeviceEvent;
         public byte[] GatewayAddress { get; set; }
-        public string GatewayName { get; set; }
-        List<Tuple<byte[], string>> Devices { get; set; } = new List<Tuple<byte[], string>>();
-        public HARTIPClient(IPEndPoint server)
+        public string GatewayTag { get; set; }
+        public int timeout { get; set; }
+        public int pollingInterval { get; set; }
+        private Timer KeepAliveTimer;
+        private Timer DataTimer;
+        public List<Tuple<byte[], string>> Devices { get; set; } = new List<Tuple<byte[], string>>();
+        public HARTIPClient(IPEndPoint server, int timeout, int pollingInterval)
         {
             this.client = new TcpClient();
             this.server = server;
+            this.timeout = timeout;
+            this.pollingInterval = pollingInterval;
+        }
+        public void Start()
+        {
             Connect();
-            if (Initiate(600000))
+            if (Initiate(timeout))
             {
                 MapNetwork();
+                SetTimers(timeout, pollingInterval);
+                OnDataTimerEvent(null, null);
+                while (KeepAliveTimer.Enabled == true)
+                {
+
+                }
             }
         }
+        private void SetTimers(int timeout, int pollingInterval)
+        {
+            KeepAliveTimer = new Timer(timeout/10);
+            KeepAliveTimer.Elapsed += new ElapsedEventHandler(OnKeepAliveTimerEvent);
+            KeepAliveTimer.AutoReset = false;
+            KeepAliveTimer.Start();
 
+            DataTimer = new Timer(pollingInterval);
+            DataTimer.Elapsed += new ElapsedEventHandler(OnDataTimerEvent);
+            DataTimer.AutoReset = false;
+            DataTimer.Start();
+        }
         public void Connect()
         {
             client.Connect(server.Address.ToString(), server.Port);
             stream = client.GetStream();
-            
         }
-        public bool Initiate(int timeout)
+        private bool Initiate(int timeout)
         {
             byte[] initiateTimeout = new byte[] { 0x01 };
             initiateTimeout = initiateTimeout.Concat(BitConverter.GetBytes(timeout).Reverse()).ToArray();
@@ -69,7 +80,7 @@ namespace HARTIPC
             else
                 return false;
         }
-        public bool KeepAlive()
+        private bool KeepAlive()
         {
             var frame = new HARTIPFrame(SequenceNumber).Serialize();
             stream.Write(frame);
@@ -83,7 +94,7 @@ namespace HARTIPC
             else
                 return false;
         }
-        public HARTFrame PDU(HARTFrame pdu)
+        private HARTFrame PDU(HARTFrame pdu)
         {
             var frame = new HARTIPFrame(SequenceNumber, messageID: MessageID.PDU, payload: pdu.Serialize());
             stream.Write(frame.Serialize());
@@ -91,12 +102,6 @@ namespace HARTIPC
             stream.Read(buffer, 0, buffer.Length);
             var response = new HARTFrame(new HARTIPFrame(buffer).GetPayload());
             SequenceNumber++;
-            if (response.Command == 77)
-            {
-                var innerHart = new HARTFrame(response.GetPayload()[2..]);
-                if (innerHart.Command == 3)
-                    OnDataEntryReceived(innerHart);
-            }
             return response;
         }
         private void MapNetwork()
@@ -106,26 +111,61 @@ namespace HARTIPC
             GatewayAddress = HARTFrame.GetAddress(response0.GetPayload()[1..3], response0.GetPayload()[9..12]);
             var frame20 = new HARTFrame(GatewayAddress, 20);
             var response20 = PDU(frame20);
-            GatewayName = Encoding.ASCII.GetString(response20.GetPayload()).TrimEnd('\0');
+            GatewayTag = Encoding.ASCII.GetString(response20.GetPayload()).TrimEnd('\0');
+            OnNewGatewayEvent(new GatewayDataArgs(BitConverter.ToString(GatewayAddress).ToLower().Replace("-", string.Empty), GatewayTag));
             var frame74 = new HARTFrame(GatewayAddress, 74);
             var response74 = PDU(frame74);
-            var deviceCount = BitConverter.ToInt16(response74.GetPayload()[3..5].Reverse().ToArray())-1;
-            for (ushort i = 1; i <= deviceCount; i++)
+            var deviceCount = BitConverter.ToInt16(response74.GetPayload()[3..5].Reverse().ToArray());
+            for (ushort i = 1; i < deviceCount; i++)
             {
                 var frame84 = new HARTFrame(GatewayAddress, 84, BitConverter.GetBytes(i).Reverse().ToArray());
                 var response84 = PDU(frame84);
-                Devices.Add(new Tuple<byte[], string>(HARTFrame.GetAddress(response84.GetPayload()[6..11]), Encoding.ASCII.GetString(response84.GetPayload())[12..44].TrimEnd('\0')));
+                var DeviceAddress = HARTFrame.GetAddress(response84.GetPayload()[6..11]);
+                var DeviceTag = Encoding.ASCII.GetString(response84.GetPayload())[12..44].TrimEnd('\0');
+                OnNewDeviceEvent(new DeviceDataArgs(BitConverter.ToString(DeviceAddress).ToLower().Replace("-", string.Empty), DeviceTag, 1));
+                Devices.Add(new Tuple<byte[], string>(DeviceAddress, DeviceTag));
             }
         }
-        protected virtual void OnDataEntryReceived(HARTFrame frame)
+        protected virtual void OnNewGatewayEvent(GatewayDataArgs e)
+            => NewGatewayEvent?.Invoke(this, e);
+        protected virtual void OnNewDeviceEvent(DeviceDataArgs e)
+            => NewDeviceEvent?.Invoke(this, e);
+        protected virtual void OnDataEntryReceivedEvent(HARTFrame frame) 
+            => DataEntryReceivedEvent?.Invoke(this, new DataEntryEventArgs(frame));
+        private void OnDataTimerEvent(object sender, ElapsedEventArgs e)
         {
-            DataEntryReceived?.Invoke(this, new DataEntryEventArgs(frame));
+            foreach (var device in Devices)
+            {
+                List<byte> payload = new List<byte>(new byte[] { 0x00, 0x00, 0x05, 0x82 });
+                payload.AddRange(device.Item1);
+                payload.AddRange(new byte[] { 0x03, 0x00 });
+                var frame = new HARTFrame(GatewayAddress, 77, payload.ToArray());
+                var response = PDU(frame);
+                if (response.Command == 77)
+                {
+                    var innerHart = new HARTFrame(response.GetPayload()[2..]);
+                    if (innerHart.Command == 3)
+                        OnDataEntryReceivedEvent(innerHart);
+                }
+                if (response.ResponseCode == 0x00)
+                    DataTimer.Start();
+            }
+            
         }
-        
+        private void OnKeepAliveTimerEvent(object sender, ElapsedEventArgs e)
+        {
+            if (KeepAlive())
+                KeepAliveTimer.Start();
+            else
+            {
+                KeepAliveTimer.Stop();
+                Dispose();
+            }
+        }
+
 
         public void Dispose()
         {
-            stream.Close();
             client.Close();
         }
     }

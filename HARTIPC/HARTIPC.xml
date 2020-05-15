@@ -4,6 +4,11 @@
         <name>HARTIPC</name>
     </assembly>
     <members>
+        <member name="T:HARTIPC.Data.DataEntryEventArgs">
+            <summary>
+            Class to hold data ready for entry into DB.
+            </summary>
+        </member>
         <member name="T:HARTIPC.FrameType">
             <summary>
             Predefined type to indicate message flow
