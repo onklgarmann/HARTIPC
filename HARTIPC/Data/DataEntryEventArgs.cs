@@ -10,6 +10,11 @@ namespace HARTIPC.Data
     /// </summary>
     class DataEntryEventArgs : EventArgs
     {
+        /// <summary>
+        /// Constructor for DataEntryEventArgs.  Takes HARTFrame object as argument.
+        /// Populates properties from frame.  Matched to table fields in database for easy entry with Dapper
+        /// </summary>
+        /// <param name="frame">HARTFrame</param>
         public DataEntryEventArgs(HARTFrame frame)
         {
             DeviceAddress = BitConverter.ToString(frame.GetAddress()).ToLower().Replace("-", string.Empty); 
@@ -33,16 +38,49 @@ namespace HARTIPC.Data
                 TV = BitConverter.ToSingle(frame.GetPayload()[20..24].Reverse().ToArray());
             }
         }
+        /// <summary>
+        /// Time of received measurement
+        /// </summary>
         public DateTime MeasurementTime { get; set; } = DateTime.UtcNow;
+        /// <summary>
+        /// Address of measurement device
+        /// </summary>
         public string DeviceAddress { get; set; }
+        /// <summary>
+        /// Devices analog current 4-20 mA
+        /// </summary>
         public float PVCurrent { get; set; }
+        /// <summary>
+        /// Unit of primary variable
+        /// </summary>
         public int PVUnit { get; set; }
+        /// <summary>
+        /// Primary Variable
+        /// </summary>
         public float PV { get; set; }
+        /// <summary>
+        /// Unit of secondary variable, optional
+        /// </summary>
         public int? SVUnit { get; set; } = null;
+        /// <summary>
+        /// Secondary Variable, optional
+        /// </summary>
         public float? SV { get; set; } = null;
+        /// <summary>
+        /// Unit of tertiary variable, optional
+        /// </summary>
         public int? TVUnit { get; set; } = null;
+        /// <summary>
+        /// Teritary Variable, optional
+        /// </summary>
         public float? TV { get; set; } = null;
+        /// <summary>
+        /// Unit of quaternary variable, optional
+        /// </summary>
         public int? QVUnit { get; set; } = null;
+        /// <summary>
+        /// Quaternary Variable, optional
+        /// </summary>
         public float? QV { get; set; } = null;
     }
 }

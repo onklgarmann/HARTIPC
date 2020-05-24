@@ -18,7 +18,7 @@ namespace HARTIPC
             {
                 var dbAgent = new DBAgent(ConfigurationManager.ConnectionStrings["HARTdata"].ToString());
                 client.DataEntryReceivedEvent += dbAgent.OnDataEntryReceivedEvent;
-                //client.NewGatewayEvent += dbAgent.OnNewGatewayEvent;
+                client.NewGatewayEvent += dbAgent.OnNewGatewayEvent;
                 client.NewDeviceEvent += dbAgent.OnNewDeviceEvent;
                 client.Start();
 

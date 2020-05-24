@@ -129,9 +129,13 @@ namespace HARTIPC
             // input validation
             if (binary == null)
                 throw new ArgumentNullException(nameof(binary));
+            else if (binary.Length < 5)
+                throw new ArgumentOutOfRangeException(nameof(binary));
             
             // pull AddressFormat and FrameType from first byte.
             AddressFormat = ((binary[0] & (1 << 7)) == 0) ? AddressFormat.Polling : AddressFormat.UniqueID;
+            if (AddressFormat == AddressFormat.UniqueID && binary.Length < 9)
+                throw new ArgumentOutOfRangeException(nameof(binary));
             FrameType = ((binary[0] & (1 << 2)) == 0) ? FrameType.STX : FrameType.ACK;
             var offset = (AddressFormat == AddressFormat.Polling) ? 0 : 4;
             // input validation

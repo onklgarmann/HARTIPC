@@ -10,23 +10,74 @@ using System.Timers;
 
 namespace HARTIPC
 {
-    
+    /// <summary>
+    /// HARTIPClient sets up TCP-connection to server and wraps and unwraps HART in HART-IP.
+    /// 
+    /// </summary>
     class HARTIPClient : IDisposable
     {
+        /// <summary>
+        /// TCP client
+        /// </summary>
         TcpClient client;
+        /// <summary>
+        /// Network stream. Obtained from TCP client
+        /// </summary>
         NetworkStream stream;
+        /// <summary>
+        /// IP address of HART-IP-server
+        /// </summary>
         IPEndPoint server { get; set; }
+        /// <summary>
+        /// HART-IP sequence number
+        /// </summary>
         ushort SequenceNumber { get; set; } = 1;
+        /// <summary>
+        /// Eventhandler for data entry
+        /// </summary>
         public event EventHandler<DataEntryEventArgs> DataEntryReceivedEvent;
+        /// <summary>
+        /// Eventhandler for new gateway detected
+        /// </summary>
         public event EventHandler<GatewayDataArgs> NewGatewayEvent;
+        /// <summary>
+        /// Eventhandler for ne device event
+        /// </summary>
         public event EventHandler<DeviceDataArgs> NewDeviceEvent;
+        /// <summary>
+        /// Gateway address
+        /// </summary>
         public byte[] GatewayAddress { get; set; }
+        /// <summary>
+        /// Gateway TAG - up to 32 bytes
+        /// </summary>
         public string GatewayTag { get; set; }
+        /// <summary>
+        /// timout in milliseconds for keep-alive timer
+        /// </summary>
         public int timeout { get; set; }
+        /// <summary>
+        /// polling interval for data requests
+        /// </summary>
         public int pollingInterval { get; set; }
+        /// <summary>
+        /// Timer for sending keep-alives
+        /// </summary>
         private Timer KeepAliveTimer;
+        /// <summary>
+        /// Timer for data requests.
+        /// </summary>
         private Timer DataTimer;
+        /// <summary>
+        /// List to hold Devices
+        /// </summary>
         public List<Tuple<byte[], string>> Devices { get; set; } = new List<Tuple<byte[], string>>();
+        /// <summary>
+        /// Constructor for client
+        /// </summary>
+        /// <param name="server">IPEndpoint</param>
+        /// <param name="timeout">int</param>
+        /// <param name="pollingInterval">int</param>
         public HARTIPClient(IPEndPoint server, int timeout, int pollingInterval)
         {
             this.client = new TcpClient();
@@ -34,20 +85,30 @@ namespace HARTIPC
             this.timeout = timeout;
             this.pollingInterval = pollingInterval;
         }
+        /// <summary>
+        /// Start the client
+        /// </summary>
         public void Start()
         {
             Connect();
             if (Initiate(timeout))
             {
+                // if connection is accepted, map the network. start timers and app
                 MapNetwork();
                 SetTimers(timeout, pollingInterval);
                 OnDataTimerEvent(null, null);
+                //keep looping until keep-alive timer is no longer set.
                 while (KeepAliveTimer.Enabled == true)
                 {
 
                 }
             }
         }
+        /// <summary>
+        /// Set timers and events.
+        /// </summary>
+        /// <param name="timeout"></param>
+        /// <param name="pollingInterval"></param>
         private void SetTimers(int timeout, int pollingInterval)
         {
             KeepAliveTimer = new Timer(timeout/10);
@@ -60,11 +121,19 @@ namespace HARTIPC
             DataTimer.AutoReset = false;
             DataTimer.Start();
         }
+        /// <summary>
+        /// Connect to socket
+        /// </summary>
         public void Connect()
         {
             client.Connect(server.Address.ToString(), server.Port);
             stream = client.GetStream();
         }
+        /// <summary>
+        /// send initiate with timeout in ms
+        /// </summary>
+        /// <param name="timeout">int</param>
+        /// <returns></returns>
         private bool Initiate(int timeout)
         {
             byte[] initiateTimeout = new byte[] { 0x01 };
@@ -76,10 +145,14 @@ namespace HARTIPC
             stream.Read(buffer, 0, buffer.Length);
             var response = new HARTIPFrame(buffer);
             if (frame.GetPayload().SequenceEqual(response.GetPayload()))
-                return true;
+                return true;  // return true if intiate is reciprocated
             else
                 return false;
         }
+        /// <summary>
+        /// send keep-alive
+        /// </summary>
+        /// <returns>bool</returns>
         private bool KeepAlive()
         {
             var frame = new HARTIPFrame(SequenceNumber).Serialize();
@@ -90,10 +163,15 @@ namespace HARTIPC
             frame[1] = 0x01;
             SequenceNumber++;
             if (frame.SequenceEqual(response))
-                return true;
+                return true; //return true if answered
             else
                 return false;
         }
+        /// <summary>
+        /// Send PDU to server
+        /// </summary>
+        /// <param name="pdu">HARTFrame</param>
+        /// <returns>HARTFrame</returns>
         private HARTFrame PDU(HARTFrame pdu)
         {
             var frame = new HARTIPFrame(SequenceNumber, messageID: MessageID.PDU, payload: pdu.Serialize());
@@ -104,6 +182,9 @@ namespace HARTIPC
             SequenceNumber++;
             return response;
         }
+        /// <summary>
+        /// Map the network
+        /// </summary>
         private void MapNetwork()
         {
             var frame0 = new HARTFrame(new byte[] { 0x00 }, 0);
@@ -112,7 +193,8 @@ namespace HARTIPC
             var frame20 = new HARTFrame(GatewayAddress, 20);
             var response20 = PDU(frame20);
             GatewayTag = Encoding.ASCII.GetString(response20.GetPayload()).TrimEnd('\0');
-            OnNewGatewayEvent(new GatewayDataArgs(BitConverter.ToString(GatewayAddress).ToLower().Replace("-", string.Empty), GatewayTag));
+            var GatewayData = new GatewayDataArgs(BitConverter.ToString(GatewayAddress).ToLower().Replace("-", string.Empty), GatewayTag);
+            OnNewGatewayEvent(GatewayData);
             var frame74 = new HARTFrame(GatewayAddress, 74);
             var response74 = PDU(frame74);
             var deviceCount = BitConverter.ToInt16(response74.GetPayload()[3..5].Reverse().ToArray());
@@ -121,11 +203,15 @@ namespace HARTIPC
                 var frame84 = new HARTFrame(GatewayAddress, 84, BitConverter.GetBytes(i).Reverse().ToArray());
                 var response84 = PDU(frame84);
                 var DeviceAddress = HARTFrame.GetAddress(response84.GetPayload()[6..11]);
-                var DeviceTag = Encoding.ASCII.GetString(response84.GetPayload())[12..44].TrimEnd('\0');
-                OnNewDeviceEvent(new DeviceDataArgs(BitConverter.ToString(DeviceAddress).ToLower().Replace("-", string.Empty), DeviceTag, 1));
+                char[] charsToTrim = { '\0', ' ' };
+                var DeviceTag = Encoding.ASCII.GetString(response84.GetPayload()[12..44]).Trim(charsToTrim);
+                Console.WriteLine(BitConverter.ToString(response84.GetPayload()[12..44]));
+                Console.WriteLine(DeviceTag.Length);
+                OnNewDeviceEvent(new DeviceDataArgs(BitConverter.ToString(DeviceAddress).ToLower().Replace("-", string.Empty), DeviceTag, GatewayData.GatewayID));
                 Devices.Add(new Tuple<byte[], string>(DeviceAddress, DeviceTag));
             }
         }
+        // Events
         protected virtual void OnNewGatewayEvent(GatewayDataArgs e)
             => NewGatewayEvent?.Invoke(this, e);
         protected virtual void OnNewDeviceEvent(DeviceDataArgs e)
@@ -152,6 +238,11 @@ namespace HARTIPC
             }
             
         }
+        /// <summary>
+        /// keep alive-event if keep-alive is answered
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnKeepAliveTimerEvent(object sender, ElapsedEventArgs e)
         {
             if (KeepAlive())
@@ -163,7 +254,7 @@ namespace HARTIPC
             }
         }
 
-
+        //close
         public void Dispose()
         {
             client.Close();

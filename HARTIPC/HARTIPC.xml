@@ -286,6 +286,12 @@
             </summary>
             <returns>Payload as byte array</returns>
         </member>
+        <member name="T:HARTIPC.HARTIPClient">
+            <summary>
+            HARTIPClient sets up TCP-connection to server and wraps and unwraps HART in HART-IP.
+            
+            </summary>
+        </member>
         <member name="T:HARTIPC.Properties.Resources">
             <summary>
               A strongly-typed resource class, for looking up localized strings, etc.
